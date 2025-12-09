@@ -127,5 +127,63 @@ MIT
 
    ![image-20251209112810790](./assets/image-20251209112810790.png)
 
-2. 
+2. 新增菜单窗口参考截图, 点击菜单图标输入框弹出图标选择窗口
+   ![image-20251209145744605](./assets/image-20251209145744605.png)
+
+   如果是菜单的话, 新增窗口略有不同, 请参考截图
+
+   ![image-20251209145614955](./assets/image-20251209145614955.png)
+
+3. 点击确定后调用接口POST http://localhost:8070/admin/menu/create 创建菜单
+
+   传递JSON数据, 包含的字段有如下这些
+
+   ```
+   	/**
+   	 * 菜单ID
+   	 */
+   	private Long menuId;
+   
+   	/**
+   	 * 父菜单ID，一级菜单为0
+   	 */
+   	private Long parentId;
+   
+   	/**
+   	 * 菜单名称
+   	 */
+   	@NotEmpty(message = "菜单名称不能为空")
+   	private String name;
+   
+   	/**
+   	 * 菜单URL
+   	 */
+   	private String url;
+   
+   	/**
+   	 * 授权(多个用逗号分隔，如：user:list,user:create)
+   	 */
+   	private String perms;
+   
+   	/**
+   	 * 类型   0：目录   1：菜单   2：按钮
+   	 */
+   	private Integer type;
+   
+   	/**
+   	 * 菜单图标
+   	 */
+   	private String icon;
+   
+   	/**
+   	 * 排序
+   	 */
+   	private Integer orderNum;
+   ```
+
+   当然, 在创建的时候不需要传递menuId, 这在更新的时候才需要传
+
+4. 点击删除按钮的时候调用 DELETE http://localhost:8070/admin/menu/delete/{menuId} 删除菜单, 其中{menuId}要替换成实际的菜单id
+
+   
 
