@@ -1,0 +1,356 @@
+<template>
+  <div class="menu-management">
+    <div class="page-header">
+      <el-button type="primary" @click="handleAdd">
+        <el-icon><Plus /></el-icon>
+        新增
+      </el-button>
+    </div>
+
+    <div class="table-container">
+      <el-table
+        :data="tableData"
+        style="width: 100%"
+        row-key="menuId"
+        :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
+        border
+        v-loading="loading"
+      >
+        <el-table-column prop="name" label="名称" width="200" show-overflow-tooltip />
+
+        <el-table-column prop="parentName" label="上级菜单" width="150" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ getParentName(row.parentId) || '顶级菜单' }}
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="icon" label="图标" width="100" align="center">
+          <template #default="{ row }">
+            <el-icon v-if="row.icon" :size="20">
+              <component :is="getIconComponent(row.icon)" />
+            </el-icon>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="type" label="类型" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.type === 0" type="primary">目录</el-tag>
+            <el-tag v-else-if="row.type === 1" type="success">菜单</el-tag>
+            <el-tag v-else type="info">按钮</el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="orderNum" label="排序号" width="100" align="center" />
+
+        <el-table-column prop="url" label="菜单URL" min-width="200" show-overflow-tooltip />
+
+        <el-table-column prop="perms" label="授权标识" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.perms || '-' }}
+          </template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="150" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              type="primary"
+              link
+              size="small"
+              @click="handleEdit(row)"
+            >
+              修改
+            </el-button>
+            <el-button
+              type="danger"
+              link
+              size="small"
+              @click="handleDelete(row)"
+            >
+              删除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+
+    <!-- 新增/编辑对话框 -->
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="600px"
+      @close="handleDialogClose"
+    >
+      <el-form
+        ref="formRef"
+        :model="formData"
+        :rules="formRules"
+        label-width="100px"
+      >
+        <el-form-item label="上级菜单" prop="parentId">
+          <el-tree-select
+            v-model="formData.parentId"
+            :data="menuTreeOptions"
+            :props="{ label: 'name', value: 'menuId' }"
+            placeholder="请选择上级菜单"
+            check-strictly
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="菜单名称" prop="name">
+          <el-input v-model="formData.name" placeholder="请输入菜单名称" />
+        </el-form-item>
+        <el-form-item label="菜单图标" prop="icon">
+          <el-input v-model="formData.icon" placeholder="请输入图标名称" />
+        </el-form-item>
+        <el-form-item label="菜单类型" prop="type">
+          <el-radio-group v-model="formData.type">
+            <el-radio :label="0">目录</el-radio>
+            <el-radio :label="1">菜单</el-radio>
+            <el-radio :label="2">按钮</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="排序号" prop="orderNum">
+          <el-input-number v-model="formData.orderNum" :min="0" />
+        </el-form-item>
+        <el-form-item label="菜单URL" prop="url">
+          <el-input v-model="formData.url" placeholder="请输入菜单URL" />
+        </el-form-item>
+        <el-form-item label="授权标识" prop="perms">
+          <el-input v-model="formData.perms" placeholder="请输入授权标识" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSubmit">确定</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
+import { getMenuTree } from '../utils/api'
+import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+
+const loading = ref(false)
+const tableData = ref([])
+const dialogVisible = ref(false)
+const dialogTitle = ref('新增菜单')
+const formRef = ref(null)
+const isEdit = ref(false)
+const currentEditId = ref(null)
+
+// 图标映射
+const iconMap = {
+  system: 'Setting',
+  admin: 'User',
+  role: 'UserFilled',
+  menu: 'Menu',
+  sql: 'Document',
+  job: 'Timer',
+  config: 'Tools',
+  oss: 'Upload',
+  log: 'Document',
+  editor: 'Edit'
+}
+
+// 获取图标组件
+const getIconComponent = (iconName) => {
+  if (!iconName) return ElementPlusIconsVue['Menu']
+  const mappedIcon = iconMap[iconName]
+  if (mappedIcon && ElementPlusIconsVue[mappedIcon]) {
+    return ElementPlusIconsVue[mappedIcon]
+  }
+  const capitalizedIcon = iconName.charAt(0).toUpperCase() + iconName.slice(1)
+  if (ElementPlusIconsVue[capitalizedIcon]) {
+    return ElementPlusIconsVue[capitalizedIcon]
+  }
+  return ElementPlusIconsVue['Menu']
+}
+
+// 表单数据
+const formData = ref({
+  parentId: 0,
+  name: '',
+  icon: '',
+  type: 0,
+  orderNum: 0,
+  url: '',
+  perms: ''
+})
+
+// 表单验证规则
+const formRules = {
+  name: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }],
+  type: [{ required: true, message: '请选择菜单类型', trigger: 'change' }]
+}
+
+// 菜单树选项（用于上级菜单选择）
+const menuTreeOptions = computed(() => {
+  const buildTree = (menus, parentId = 0) => {
+    const result = []
+    for (const menu of menus) {
+      if (menu.parentId === parentId) {
+        const node = {
+          menuId: menu.menuId,
+          name: menu.name,
+          children: buildTree(menus, menu.menuId)
+        }
+        result.push(node)
+      }
+    }
+    return result
+  }
+  return buildTree(tableData.value)
+})
+
+// 获取所有菜单的扁平列表（用于查找父菜单名称）
+const allMenus = ref([])
+
+// 扁平化菜单数据
+const flattenMenus = (menus) => {
+  const result = []
+  for (const menu of menus) {
+    result.push(menu)
+    if (menu.children && menu.children.length > 0) {
+      result.push(...flattenMenus(menu.children))
+    }
+  }
+  return result
+}
+
+// 根据parentId获取父菜单名称
+const getParentName = (parentId) => {
+  if (!parentId || parentId === 0) return ''
+  const parent = allMenus.value.find(m => m.menuId === parentId)
+  return parent ? parent.name : ''
+}
+
+// 加载菜单数据
+const loadMenuData = async () => {
+  loading.value = true
+  try {
+    const data = await getMenuTree()
+    // 保存树形数据用于表格展示
+    tableData.value = data
+    // 扁平化数据用于查找父菜单名称
+    allMenus.value = flattenMenus(data)
+  } catch (error) {
+    ElMessage.error('加载菜单数据失败：' + error.message)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 新增
+const handleAdd = () => {
+  isEdit.value = false
+  dialogTitle.value = '新增菜单'
+  formData.value = {
+    parentId: 0,
+    name: '',
+    icon: '',
+    type: 0,
+    orderNum: 0,
+    url: '',
+    perms: ''
+  }
+  dialogVisible.value = true
+}
+
+// 编辑
+const handleEdit = (row) => {
+  isEdit.value = true
+  currentEditId.value = row.menuId
+  dialogTitle.value = '修改菜单'
+  formData.value = {
+    parentId: row.parentId || 0,
+    name: row.name,
+    icon: row.icon || '',
+    type: row.type,
+    orderNum: row.orderNum,
+    url: row.url || '',
+    perms: row.perms || ''
+  }
+  dialogVisible.value = true
+}
+
+// 删除
+const handleDelete = (row) => {
+  ElMessageBox.confirm(
+    `确定要删除菜单"${row.name}"吗？`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    // TODO: 调用删除接口
+    ElMessage.success('删除成功')
+    loadMenuData()
+  }).catch(() => {
+    // 取消删除
+  })
+}
+
+// 提交表单
+const handleSubmit = async () => {
+  if (!formRef.value) return
+  
+  await formRef.value.validate((valid) => {
+    if (valid) {
+      // TODO: 调用新增/修改接口
+      ElMessage.success(isEdit.value ? '修改成功' : '新增成功')
+      dialogVisible.value = false
+      loadMenuData()
+    }
+  })
+}
+
+// 对话框关闭
+const handleDialogClose = () => {
+  formRef.value?.resetFields()
+}
+
+onMounted(() => {
+  loadMenuData()
+})
+</script>
+
+<style scoped>
+.menu-management {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+}
+
+.page-header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.table-container {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+}
+
+:deep(.el-table) {
+  font-size: 14px;
+}
+
+:deep(.el-table th) {
+  background-color: #f5f7fa;
+  color: #606266;
+  font-weight: 500;
+}
+</style>
+
