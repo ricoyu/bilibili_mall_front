@@ -1,6 +1,30 @@
 // API请求工具
 export const API_BASE_URL = 'http://localhost:8070'
 
+// 上传文件到 Ceph，返回 url
+export async function uploadCeph(file) {
+  try {
+    const formData = new FormData()
+    // 约定后端接收字段名为 file
+    formData.append('file', file)
+
+    const response = await fetch(`${API_BASE_URL}/file/ceph/upload`, {
+      method: 'POST',
+      body: formData
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      const url = data?.data?.url
+      if (!url) throw new Error('上传成功但未返回url')
+      return url
+    }
+    throw new Error(data.message || '上传失败')
+  } catch (error) {
+    console.error('上传失败:', error)
+    throw error
+  }
+}
+
 export async function getMenuTree() {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/menu/tree`, {
@@ -16,6 +40,116 @@ export async function getMenuTree() {
     throw new Error(data.message || '获取菜单失败')
   } catch (error) {
     console.error('获取菜单失败:', error)
+    throw error
+  }
+}
+
+// 搜索菜单
+export async function searchMenu(searchParams) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/menu/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(searchParams)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data.data || []
+    }
+    throw new Error(data.message || '搜索菜单失败')
+  } catch (error) {
+    console.error('搜索菜单失败:', error)
+    throw error
+  }
+}
+
+// 获取品牌列表
+export async function getBrandList(params = {}) {
+  try {
+    // 构建查询参数
+    const queryParams = new URLSearchParams()
+    if (params.page) {
+      queryParams.append('page', params.page)
+    }
+    if (params.size) {
+      queryParams.append('size', params.size)
+    }
+    if (params.keyword) {
+      queryParams.append('keyword', params.keyword)
+    }
+    
+    const url = `${API_BASE_URL}/product/brand/list${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      // 处理不同的返回格式
+      if (Array.isArray(data.data)) {
+        // 如果返回的是数组，包装成分页格式
+        return {
+          list: data.data,
+          total: data.data.length
+        }
+      } else if (data.data && typeof data.data === 'object') {
+        // 如果返回的是对象，可能包含list和total
+        return {
+          list: data.data.list || data.data.records || [],
+          total: data.data.total || data.data.totalCount || 0
+        }
+      }
+      return { list: [], total: 0 }
+    }
+    throw new Error(data.message || '获取品牌列表失败')
+  } catch (error) {
+    console.error('获取品牌列表失败:', error)
+    throw error
+  }
+}
+
+// 创建品牌
+export async function createBrand(brandData) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/brand/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(brandData)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '创建品牌失败')
+  } catch (error) {
+    console.error('创建品牌失败:', error)
+    throw error
+  }
+}
+
+// 更新品牌
+export async function updateBrand(brandData) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/brand/update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(brandData)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '更新品牌失败')
+  } catch (error) {
+    console.error('更新品牌失败:', error)
     throw error
   }
 }
@@ -78,6 +212,88 @@ export async function deleteMenu(menuId) {
     throw new Error(data.message || '删除菜单失败')
   } catch (error) {
     console.error('删除菜单失败:', error)
+    throw error
+  }
+}
+
+// 获取商品分类树
+export async function getCategoryTree() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/category/list-tree`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data.data || []
+    }
+    throw new Error(data.message || '获取分类数据失败')
+  } catch (error) {
+    console.error('获取分类数据失败:', error)
+    throw error
+  }
+}
+
+// 创建分类
+export async function createCategory(categoryData) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/category/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(categoryData)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '创建分类失败')
+  } catch (error) {
+    console.error('创建分类失败:', error)
+    throw error
+  }
+}
+
+// 更新分类
+export async function updateCategory(categoryData) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/category/update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(categoryData)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '更新分类失败')
+  } catch (error) {
+    console.error('更新分类失败:', error)
+    throw error
+  }
+}
+
+// 删除分类
+export async function deleteCategory(catId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/category/${catId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '删除分类失败')
+  } catch (error) {
+    console.error('删除分类失败:', error)
     throw error
   }
 }

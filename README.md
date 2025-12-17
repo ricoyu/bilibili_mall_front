@@ -187,3 +187,54 @@ MIT
 
    
 
+# 三级分类
+
+1. 修改分类
+
+   点击修改按钮弹出修改分类窗口, 再点确定后调用接口POST http://localhost:8070/product/category/update
+   传递的参数有如下几个:
+
+   	private Long catId;
+   	/**
+   	 * 分类名称
+   	 */
+   	@NotBlank(message = "分类名称不能为空")
+   	@Schema(description = "分类名称", example = "电子产品")
+   	private String name;
+   	
+   	/**
+   	 * 父分类id
+   	 */
+   	@NotNull(message = "父分类id不能为空")
+   	@Schema(description = "父分类id", example = "0")
+   	private Long parentCid;
+   	
+   	/**
+   	 * 层级
+   	 */
+   	@Schema(description = "层级", example = "1")
+   	private Integer catLevel;
+   	
+   	/**
+   	 * 排序
+   	 */
+   	@Schema(description = "排序", example = "10")
+   	private Integer sort;
+   	
+   	/**
+   	 * 图标地址
+   	 */
+   	@Schema(description = "图标地址", example = "https://example.com/icon.png")
+   	private String icon;
+   	
+   	/**
+   	 * 计量单位
+   	 */
+   	@Schema(description = "计量单位", example = "台")
+   	private String productUnit;
+
+
+
+# 品牌管理
+
+在商品系统下新建品牌管理

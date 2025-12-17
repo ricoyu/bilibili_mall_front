@@ -1,6 +1,51 @@
 <template>
   <div class="menu-management">
     <div class="page-header">
+      <div class="search-box">
+        <el-select
+          v-model="searchCondition"
+          placeholder="选择搜索条件"
+          style="width: 150px"
+        >
+          <el-option label="上级菜单" value="parentName" />
+          <el-option label="菜单名称" value="name" />
+          <el-option label="类型" value="type" />
+        </el-select>
+        <el-input
+          v-if="searchCondition === 'name' || searchCondition === 'parentName'"
+          v-model="searchValue"
+          :placeholder="searchCondition === 'name' ? '请输入菜单名称' : '请输入上级菜单名称'"
+          style="width: 300px; margin-left: 10px"
+          clearable
+          @keyup.enter="handleSearch"
+        />
+        <el-select
+          v-else-if="searchCondition === 'type'"
+          v-model="searchValue"
+          placeholder="请选择类型"
+          style="width: 300px; margin-left: 10px"
+          clearable
+        >
+          <el-option label="目录" :value="0" />
+          <el-option label="菜单" :value="1" />
+          <el-option label="按钮" :value="2" />
+        </el-select>
+        <el-button
+          type="primary"
+          style="margin-left: 10px"
+          @click="handleSearch"
+        >
+          <el-icon><Search /></el-icon>
+          搜索
+        </el-button>
+        <el-button
+          v-if="hasSearch"
+          style="margin-left: 10px"
+          @click="handleReset"
+        >
+          重置
+        </el-button>
+      </div>
       <el-button type="primary" @click="handleAdd">
         <el-icon><Plus /></el-icon>
         新增
@@ -20,7 +65,7 @@
 
         <el-table-column prop="parentName" label="上级菜单" width="150" show-overflow-tooltip>
           <template #default="{ row }">
-            {{ getParentName(row.parentId) || '顶级菜单' }}
+            {{ row.parentName || '顶级菜单' }}
           </template>
         </el-table-column>
 
@@ -184,8 +229,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
-import { getMenuTree, createMenu, updateMenu, deleteMenu } from '../utils/api'
+import { Plus, Search } from '@element-plus/icons-vue'
+import { getMenuTree, searchMenu, createMenu, updateMenu, deleteMenu } from '../utils/api'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import { ClickOutside as vClickOutside } from 'element-plus'
 
@@ -196,6 +241,11 @@ const dialogTitle = ref('新增菜单')
 const formRef = ref(null)
 const isEdit = ref(false)
 const currentEditId = ref(null)
+
+// 搜索相关
+const searchCondition = ref('name')
+const searchValue = ref('')
+const hasSearch = ref(false)
 
 // 图标映射
 const iconMap = {
@@ -304,6 +354,8 @@ const menuTreeOptions = computed(() => {
 
 // 获取所有菜单的扁平列表（用于查找父菜单名称）
 const allMenus = ref([])
+// 保留完整的菜单数据，用于查找父菜单名称（即使搜索后也能找到）
+const fullMenuData = ref([])
 
 // 扁平化菜单数据
 const flattenMenus = (menus) => {
@@ -320,7 +372,9 @@ const flattenMenus = (menus) => {
 // 根据parentId获取父菜单名称
 const getParentName = (parentId) => {
   if (!parentId || parentId === 0) return ''
-  const parent = allMenus.value.find(m => m.menuId === parentId)
+  // 优先从完整菜单数据中查找，如果找不到再从当前菜单数据中查找
+  const fullMenus = flattenMenus(fullMenuData.value)
+  const parent = fullMenus.find(m => m.menuId === parentId) || allMenus.value.find(m => m.menuId === parentId)
   return parent ? parent.name : ''
 }
 
@@ -367,6 +421,8 @@ const loadMenuData = async () => {
   loading.value = true
   try {
     const data = await getMenuTree()
+    // 保存完整的菜单数据，用于查找父菜单名称
+    fullMenuData.value = data
     // 保存树形数据用于表格展示
     tableData.value = data
     // 扁平化数据用于查找父菜单名称
@@ -376,6 +432,72 @@ const loadMenuData = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 搜索菜单数据
+const searchMenuData = async (searchParams) => {
+  loading.value = true
+  try {
+    // 如果还没有加载完整数据，先加载一次（用于查找父菜单名称）
+    if (fullMenuData.value.length === 0) {
+      const fullData = await getMenuTree()
+      fullMenuData.value = fullData
+    }
+    
+    const data = await searchMenu(searchParams)
+    // 保存树形数据用于表格展示
+    tableData.value = data
+    // 扁平化数据用于查找父菜单名称（搜索结果的扁平化）
+    allMenus.value = flattenMenus(data)
+  } catch (error) {
+    ElMessage.error('搜索菜单数据失败：' + error.message)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 搜索
+const handleSearch = () => {
+  if (!searchCondition.value) {
+    ElMessage.warning('请选择搜索条件')
+    return
+  }
+  
+  if (searchCondition.value === 'type') {
+    if (searchValue.value === '' && searchValue.value !== 0) {
+      ElMessage.warning('请选择类型')
+      return
+    }
+  } else {
+    if (!searchValue.value || searchValue.value.trim() === '') {
+      ElMessage.warning('请输入搜索值')
+      return
+    }
+  }
+  
+  hasSearch.value = true
+  const searchParams = {}
+  
+  if (searchCondition.value === 'parentName') {
+    // 上级菜单：直接传递菜单名称
+    searchParams.parentName = searchValue.value.trim()
+  } else if (searchCondition.value === 'name') {
+    // 菜单名称
+    searchParams.name = searchValue.value.trim()
+  } else if (searchCondition.value === 'type') {
+    // 类型
+    searchParams.type = searchValue.value
+  }
+  
+  searchMenuData(searchParams)
+}
+
+// 重置搜索
+const handleReset = () => {
+  searchCondition.value = 'name'
+  searchValue.value = ''
+  hasSearch.value = false
+  loadMenuData()
 }
 
 // 新增
@@ -495,10 +617,24 @@ onMounted(() => {
 
 .page-header {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: center;
   padding: 20px;
   border-bottom: 1px solid #e4e7ed;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  margin-right: 20px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  margin-right: 20px;
 }
 
 .table-container {

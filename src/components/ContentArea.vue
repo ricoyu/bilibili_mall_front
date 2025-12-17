@@ -40,10 +40,14 @@
 import { ref, watch } from 'vue'
 import { API_BASE_URL } from '../utils/api'
 import MenuManagement from '../views/MenuManagement.vue'
+import CategoryManagement from '../views/CategoryManagement.vue'
+import BrandManagement from '../views/BrandManagement.vue'
 
 // URL到组件的映射
 const urlComponentMap = {
-  'sys/menu': MenuManagement
+  'sys/menu': MenuManagement,
+  'product/category': CategoryManagement,
+  'product/brand': BrandManagement
   // 可以在这里添加更多URL到组件的映射
 }
 
