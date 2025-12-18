@@ -30,9 +30,15 @@
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column prop="brandId" label="品牌id" width="100" align="center" />
         <el-table-column prop="name" label="品牌名" width="150" show-overflow-tooltip />
-        <el-table-column prop="logo" label="品牌logo" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="logo" label="品牌logo" width="120" align="center">
           <template #default="{ row }">
-            {{ row.logo || '-' }}
+            <img
+              v-if="row.logo"
+              :src="row.logo"
+              alt="品牌logo"
+              class="brand-logo-img"
+            />
+            <span v-else class="no-logo">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="descript" label="介绍" width="150" show-overflow-tooltip>
@@ -523,6 +529,20 @@ onMounted(() => {
 
 .toggle-switch-on .toggle-handle {
   transform: translateX(18px);
+}
+
+.brand-logo-img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
+  display: block;
+  margin: 0 auto;
+}
+
+.no-logo {
+  color: #909399;
 }
 </style>
 
