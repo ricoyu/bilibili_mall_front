@@ -41,7 +41,7 @@
             <span v-else class="no-logo">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="descript" label="介绍" width="150" show-overflow-tooltip>
+        <el-table-column prop="descript" label="介绍" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.descript || '-' }}
           </template>
@@ -487,6 +487,11 @@ onMounted(() => {
 
 :deep(.el-table) {
   font-size: 14px;
+  width: 100%;
+}
+
+:deep(.el-table__body-wrapper) {
+  width: 100%;
 }
 
 :deep(.el-table th) {
