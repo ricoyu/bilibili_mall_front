@@ -40,10 +40,17 @@
             {{ row.descript || '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="showStatus" label="显示状态[0-不显示; 1-显示]" width="200" align="center">
+        <el-table-column prop="showStatus" label="显示状态" width="120" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.showStatus === 1" type="success">显示</el-tag>
-            <el-tag v-else type="info">不显示</el-tag>
+            <div class="toggle-switch-wrapper">
+              <div
+                class="toggle-switch"
+                :class="{ 'toggle-switch-on': row.showStatus === 1 }"
+                @click="handleToggleShowStatus(row)"
+              >
+                <div class="toggle-handle"></div>
+              </div>
+            </div>
           </template>
         </el-table-column>
         <el-table-column prop="firstLetter" label="检索首字母" width="120" align="center">
@@ -155,7 +162,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { getBrandList, createBrand, updateBrand, uploadCeph } from '../utils/api'
+import { getBrandList, createBrand, updateBrand, uploadCeph, switchBrandShowStatus } from '../utils/api'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -358,6 +365,19 @@ const handleEdit = (row) => {
   dialogVisible.value = true
 }
 
+// 切换显示状态
+const handleToggleShowStatus = async (row) => {
+  try {
+    const newStatus = row.showStatus === 1 ? 0 : 1
+    await switchBrandShowStatus(row.brandId, newStatus)
+    // 更新本地数据
+    row.showStatus = newStatus
+    ElMessage.success('切换成功')
+  } catch (error) {
+    ElMessage.error(error.message || '切换失败')
+  }
+}
+
 // 删除
 const handleDelete = (row) => {
   ElMessageBox.confirm(
@@ -467,6 +487,42 @@ onMounted(() => {
   background-color: #f5f7fa;
   color: #606266;
   font-weight: 500;
+}
+
+.toggle-switch-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 36px;
+  height: 18px;
+  background-color: #dc3545;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.toggle-switch-on {
+  background-color: #28a745;
+}
+
+.toggle-handle {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background-color: #fff;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch-on .toggle-handle {
+  transform: translateX(18px);
 }
 </style>
 

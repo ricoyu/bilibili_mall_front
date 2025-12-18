@@ -298,3 +298,23 @@ export async function deleteCategory(catId) {
   }
 }
 
+// 切换品牌显示状态
+export async function switchBrandShowStatus(brandId, showStatus) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/brand/switchshow/${brandId}/${showStatus}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '切换显示状态失败')
+  } catch (error) {
+    console.error('切换显示状态失败:', error)
+    throw error
+  }
+}
+
