@@ -18,11 +18,13 @@
           <component
             v-if="tab.component"
             :is="tab.component"
+            :key="`${tab.name}-${tab.refreshKey || 0}`"
           />
           <!-- iframe -->
           <iframe
             v-else-if="tab.url && tab.isExternal"
             :src="tab.fullUrl"
+            :key="`${tab.name}-${tab.refreshKey || 0}`"
             frameborder="0"
             class="content-iframe"
           ></iframe>
@@ -58,6 +60,8 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['tab-remove'])
+
 const tabs = ref([])
 const activeTab = ref('')
 
@@ -88,7 +92,10 @@ const addTab = (menu) => {
   const existingTab = tabs.value.find(tab => tab.name === tabName)
 
   if (existingTab) {
+    // 如果标签页已存在，激活它并强制刷新组件
     activeTab.value = tabName
+    // 通过更新组件的 key 来强制重新渲染
+    existingTab.refreshKey = (existingTab.refreshKey || 0) + 1
     return
   }
 
@@ -102,7 +109,8 @@ const addTab = (menu) => {
     url: menu.url,
     fullUrl: getFullUrl(menu.url),
     isExternal: isExternal,
-    component: component
+    component: component,
+    refreshKey: 0
   }
 
   tabs.value.push(newTab)
@@ -127,6 +135,9 @@ const removeTab = (targetName) => {
 
   activeTab.value = activeName
   tabs.value = tabsList.filter(tab => tab.name !== targetName)
+  
+  // 通知父组件标签页已关闭，需要清除菜单激活状态
+  emit('tab-remove', targetName)
 }
 
 // 处理标签页点击

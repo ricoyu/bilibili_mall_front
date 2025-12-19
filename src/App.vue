@@ -15,6 +15,7 @@
         </div>
         <SidebarMenu
           :is-collapse="isCollapse"
+          :clear-active="clearActiveMenu"
           @menu-select="handleMenuSelect"
         />
       </el-aside>
@@ -26,7 +27,10 @@
           </div>
         </el-header>
         <el-main class="app-main">
-          <ContentArea :current-menu="currentMenu" />
+          <ContentArea 
+            :current-menu="currentMenu" 
+            @tab-remove="handleTabRemove"
+          />
         </el-main>
       </el-container>
     </el-container>
@@ -41,6 +45,7 @@ import { Fold, Expand } from '@element-plus/icons-vue'
 
 const isCollapse = ref(false)
 const currentMenu = ref(null)
+const clearActiveMenu = ref('')
 
 const toggleCollapse = () => {
   isCollapse.value = !isCollapse.value
@@ -48,6 +53,19 @@ const toggleCollapse = () => {
 
 const handleMenuSelect = (menu) => {
   currentMenu.value = menu
+}
+
+const handleTabRemove = (tabName) => {
+  // 如果关闭的标签页对应的菜单是当前激活的菜单，清除激活状态
+  if (currentMenu.value && currentMenu.value.url === tabName) {
+    currentMenu.value = null
+    // 通知 SidebarMenu 清除激活状态
+    clearActiveMenu.value = tabName
+    // 重置 clearActiveMenu，以便下次可以再次触发
+    setTimeout(() => {
+      clearActiveMenu.value = ''
+    }, 0)
+  }
 }
 </script>
 

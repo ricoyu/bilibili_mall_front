@@ -37,6 +37,7 @@
                 v-for="subChild in child.children"
                 :key="subChild.menuId"
                 :index="subChild.url || String(subChild.menuId)"
+                @click="handleMenuItemClick(subChild)"
               >
                 <el-icon v-if="subChild.icon">
                   <component :is="getIconComponent(subChild.icon)" />
@@ -48,6 +49,7 @@
             <el-menu-item
               v-else
               :index="child.url || String(child.menuId)"
+              @click="handleMenuItemClick(child)"
             >
               <el-icon v-if="child.icon">
                 <component :is="getIconComponent(child.icon)" />
@@ -60,6 +62,7 @@
         <el-menu-item
           v-else
           :index="menu.url || String(menu.menuId)"
+          @click="handleMenuItemClick(menu)"
         >
           <el-icon v-if="menu.icon">
             <component :is="getIconComponent(menu.icon)" />
@@ -72,7 +75,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { getMenuTree } from '../utils/api'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 
@@ -80,6 +83,10 @@ const props = defineProps({
   isCollapse: {
     type: Boolean,
     default: false
+  },
+  clearActive: {
+    type: String,
+    default: ''
   }
 })
 
@@ -87,6 +94,13 @@ const emit = defineEmits(['menu-select'])
 
 const menuList = ref([])
 const activeMenu = ref('')
+
+// 监听 clearActive 变化，清除激活状态
+watch(() => props.clearActive, (newValue) => {
+  if (newValue && activeMenu.value === newValue) {
+    activeMenu.value = ''
+  }
+})
 
 // 图标映射（将后端返回的图标名映射到Element Plus图标组件名）
 const iconMap = {
@@ -134,9 +148,18 @@ const loadMenuData = async () => {
   }
 }
 
+// 处理菜单项点击（用于支持重复点击已激活的菜单项）
+const handleMenuItemClick = (menu) => {
+  if (menu && menu.url && menu.type === 1) {
+    // 更新激活状态
+    activeMenu.value = menu.url
+    // 始终触发事件，即使菜单项已经激活
+    emit('menu-select', menu)
+  }
+}
+
 // 处理菜单选择
 const handleMenuSelect = (index) => {
-  activeMenu.value = index
   // 查找选中的菜单项
   const findMenuByUrl = (menus, url) => {
     for (const menu of menus) {
@@ -157,6 +180,9 @@ const handleMenuSelect = (index) => {
   
   const selectedMenu = findMenuByUrl(menuList.value, index)
   if (selectedMenu && selectedMenu.url) {
+    // 更新激活状态
+    activeMenu.value = index
+    // 始终触发事件，即使菜单项已经激活
     emit('menu-select', selectedMenu)
   }
 }
