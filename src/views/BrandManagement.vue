@@ -4,7 +4,7 @@
       <div class="search-box">
         <el-input
           v-model="searchKeyword"
-          placeholder="参数名"
+          placeholder="品牌名"
           style="width: 200px"
           clearable
           @keyup.enter="handleSearch"
@@ -168,7 +168,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { getBrandList, createBrand, updateBrand, uploadCeph, switchBrandShowStatus } from '../utils/api'
+import { getBrandList, createBrand, updateBrand, uploadCeph, switchBrandShowStatus, searchBrand } from '../utils/api'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -249,16 +249,18 @@ const pagination = ref({
 const loadBrandData = async () => {
   loading.value = true
   try {
-    const params = {
-      page: pagination.value.current,
-      size: pagination.value.size
+    // 使用搜索接口，默认按品牌名模糊搜索
+    const searchParams = {
+      name: searchKeyword.value || '',
+      pageNum: pagination.value.current,
+      pageSize: pagination.value.size
     }
-    if (searchKeyword.value) {
-      params.keyword = searchKeyword.value
+    const result = await searchBrand(searchParams)
+    tableData.value = result.list || []
+    // 使用返回的page属性更新分页信息
+    if (result.page) {
+      pagination.value.total = result.page.total || 0
     }
-    const data = await getBrandList(params)
-    tableData.value = data.list || []
-    pagination.value.total = data.total || 0
   } catch (error) {
     ElMessage.error('加载品牌数据失败：' + error.message)
   } finally {

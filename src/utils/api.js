@@ -318,3 +318,27 @@ export async function switchBrandShowStatus(brandId, showStatus) {
   }
 }
 
+// 搜索品牌
+export async function searchBrand(searchParams) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/brand/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(searchParams)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return {
+        list: data.data || [],
+        page: data.page || {}
+      }
+    }
+    throw new Error(data.message || '搜索品牌失败')
+  } catch (error) {
+    console.error('搜索品牌失败:', error)
+    throw error
+  }
+}
+
