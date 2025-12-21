@@ -44,12 +44,14 @@ import { API_BASE_URL } from '../utils/api'
 import MenuManagement from '../views/MenuManagement.vue'
 import CategoryManagement from '../views/CategoryManagement.vue'
 import BrandManagement from '../views/BrandManagement.vue'
+import AttrGroupManagement from '../views/AttrGroupManagement.vue'
 
 // URL到组件的映射
 const urlComponentMap = {
   'sys/menu': MenuManagement,
   'product/category': CategoryManagement,
-  'product/brand': BrandManagement
+  'product/brand': BrandManagement,
+  'product/attrgroup': AttrGroupManagement
   // 可以在这里添加更多URL到组件的映射
 }
 

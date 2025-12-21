@@ -39,10 +39,12 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import SidebarMenu from './components/SidebarMenu.vue'
 import ContentArea from './components/ContentArea.vue'
 import { Fold, Expand } from '@element-plus/icons-vue'
 
+const router = useRouter()
 const isCollapse = ref(false)
 const currentMenu = ref(null)
 const clearActiveMenu = ref('')
@@ -53,6 +55,10 @@ const toggleCollapse = () => {
 
 const handleMenuSelect = (menu) => {
   currentMenu.value = menu
+  // 更新浏览器 URL，使用 hash 模式
+  if (menu && menu.url) {
+    router.push(`/${menu.url}`)
+  }
 }
 
 const handleTabRemove = (tabName) => {
