@@ -66,44 +66,22 @@ export async function searchMenu(searchParams) {
 }
 
 // 获取品牌列表
-export async function getBrandList(params = {}) {
+export async function getBrandList() {
   try {
-    // 构建查询参数
-    const queryParams = new URLSearchParams()
-    if (params.page) {
-      queryParams.append('page', params.page)
-    }
-    if (params.size) {
-      queryParams.append('size', params.size)
-    }
-    if (params.keyword) {
-      queryParams.append('keyword', params.keyword)
-    }
-    
-    const url = `${API_BASE_URL}/product/brand/list${queryParams.toString() ? '?' + queryParams.toString() : ''}`
-    const response = await fetch(url, {
-      method: 'GET',
+    // 后台已写死分页参数，使用 POST 方法调用接口
+    const response = await fetch(`${API_BASE_URL}/product/brand/list`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       }
     })
     const data = await response.json()
     if (data.code === '0' || data.status === 'success') {
-      // 处理不同的返回格式
-      if (Array.isArray(data.data)) {
-        // 如果返回的是数组，包装成分页格式
-        return {
-          list: data.data,
-          total: data.data.length
-        }
-      } else if (data.data && typeof data.data === 'object') {
-        // 如果返回的是对象，可能包含list和total
-        return {
-          list: data.data.list || data.data.records || [],
-          total: data.data.total || data.data.totalCount || 0
-        }
+      // 返回格式：{ list, page }
+      return {
+        list: data.data || [],
+        page: data.page || {}
       }
-      return { list: [], total: 0 }
     }
     throw new Error(data.message || '获取品牌列表失败')
   } catch (error) {

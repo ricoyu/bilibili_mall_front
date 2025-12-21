@@ -138,7 +138,14 @@
           </div>
         </el-form-item>
         <el-form-item label="介绍" prop="descript">
-          <el-input v-model="formData.descript" placeholder="介绍" />
+          <el-input
+            v-model="formData.descript"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入品牌介绍"
+            maxlength="500"
+            show-word-limit
+          />
         </el-form-item>
         <el-form-item label="显示状态" prop="showStatus">
           <el-select v-model="formData.showStatus" placeholder="请选择显示状态" style="width: 100%">
@@ -242,16 +249,53 @@ const handleLogoUpload = async (options) => {
 const pagination = ref({
   current: 1,
   size: 10,
-  total: 0
+  total: 0,
+  totalPages: 0
 })
 
 // 加载品牌数据
 const loadBrandData = async () => {
   loading.value = true
   try {
-    // 使用搜索接口，默认按品牌名模糊搜索
+    let result
+    if (searchKeyword.value) {
+      // 有搜索关键词时，使用搜索接口
+      const searchParams = {
+        name: searchKeyword.value,
+        pageNum: pagination.value.current,
+        pageSize: pagination.value.size
+      }
+      result = await searchBrand(searchParams)
+    } else {
+      // 没有搜索关键词时，使用列表接口（后台已写死分页参数）
+      result = await getBrandList()
+    }
+    tableData.value = result.list || []
+    // 使用返回的page属性更新分页信息
+    if (result.page) {
+      pagination.value.total = result.page.total || 0
+      pagination.value.totalPages = result.page.totalPages || 0
+      // 如果返回了当前页码和每页大小，也更新（虽然后台写死了，但保持同步）
+      if (result.page.pageNum) {
+        pagination.value.current = result.page.pageNum
+      }
+      if (result.page.pageSize) {
+        pagination.value.size = result.page.pageSize
+      }
+    }
+  } catch (error) {
+    ElMessage.error('加载品牌数据失败：' + error.message)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 分页切换时调用搜索接口
+const handlePageChange = async () => {
+  loading.value = true
+  try {
     const searchParams = {
-      name: searchKeyword.value || '',
+      name: searchKeyword.value || null,
       pageNum: pagination.value.current,
       pageSize: pagination.value.size
     }
@@ -260,6 +304,13 @@ const loadBrandData = async () => {
     // 使用返回的page属性更新分页信息
     if (result.page) {
       pagination.value.total = result.page.total || 0
+      pagination.value.totalPages = result.page.totalPages || 0
+      if (result.page.pageNum) {
+        pagination.value.current = result.page.pageNum
+      }
+      if (result.page.pageSize) {
+        pagination.value.size = result.page.pageSize
+      }
     }
   } catch (error) {
     ElMessage.error('加载品牌数据失败：' + error.message)
@@ -269,22 +320,46 @@ const loadBrandData = async () => {
 }
 
 // 搜索
-const handleSearch = () => {
+const handleSearch = async () => {
   pagination.value.current = 1
-  loadBrandData()
+  loading.value = true
+  try {
+    const searchParams = {
+      name: searchKeyword.value || null,
+      pageNum: pagination.value.current,
+      pageSize: pagination.value.size
+    }
+    const result = await searchBrand(searchParams)
+    tableData.value = result.list || []
+    // 使用返回的page属性更新分页信息
+    if (result.page) {
+      pagination.value.total = result.page.total || 0
+      pagination.value.totalPages = result.page.totalPages || 0
+      if (result.page.pageNum) {
+        pagination.value.current = result.page.pageNum
+      }
+      if (result.page.pageSize) {
+        pagination.value.size = result.page.pageSize
+      }
+    }
+  } catch (error) {
+    ElMessage.error('搜索品牌数据失败：' + error.message)
+  } finally {
+    loading.value = false
+  }
 }
 
 // 分页大小改变
 const handleSizeChange = (size) => {
   pagination.value.size = size
   pagination.value.current = 1
-  loadBrandData()
+  handlePageChange()
 }
 
 // 当前页改变
 const handleCurrentChange = (page) => {
   pagination.value.current = page
-  loadBrandData()
+  handlePageChange()
 }
 
 // 选择改变
