@@ -320,3 +320,182 @@ export async function searchBrand(searchParams) {
   }
 }
 
+// 获取属性分组列表
+export async function getAttrGroupList(catelogId = null) {
+  try {
+    // 构建URL，如果传入了 catelogId，则作为URL参数
+    let url = `${API_BASE_URL}/product/attrgroup/list`
+    if (catelogId !== null && catelogId !== undefined && catelogId !== '') {
+      url += `?catelogId=${catelogId}`
+    }
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return {
+        list: data.data || [],
+        page: data.page || {}
+      }
+    }
+    throw new Error(data.message || '获取属性分组列表失败')
+  } catch (error) {
+    console.error('获取属性分组列表失败:', error)
+    throw error
+  }
+}
+
+// 创建属性分组
+export async function createAttrGroup(attrGroupData) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/attrgroup/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(attrGroupData)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '创建属性分组失败')
+  } catch (error) {
+    console.error('创建属性分组失败:', error)
+    throw error
+  }
+}
+
+// 更新属性分组
+export async function updateAttrGroup(attrGroupData) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/attrgroup/save`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(attrGroupData)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '更新属性分组失败')
+  } catch (error) {
+    console.error('更新属性分组失败:', error)
+    throw error
+  }
+}
+
+// 搜索属性分组
+export async function searchAttrGroup(searchParams) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/attrgroup/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(searchParams)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return {
+        list: data.data || [],
+        page: data.page || {}
+      }
+    }
+    throw new Error(data.message || '搜索属性分组失败')
+  } catch (error) {
+    console.error('搜索属性分组失败:', error)
+    throw error
+  }
+}
+
+// 删除属性分组
+export async function deleteAttrGroup(attrGroupIds) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/attrgroup/delete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        attrGroupIds: Array.isArray(attrGroupIds) ? attrGroupIds : [attrGroupIds]
+      })
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '删除属性分组失败')
+  } catch (error) {
+    console.error('删除属性分组失败:', error)
+    throw error
+  }
+}
+
+// 获取品牌关联的分类列表
+export async function getBrandCategoryList(brandId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/brand/catelog/list?brandId=${brandId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data.data || []
+    }
+    throw new Error(data.message || '获取品牌关联分类列表失败')
+  } catch (error) {
+    console.error('获取品牌关联分类列表失败:', error)
+    throw error
+  }
+}
+
+// 保存品牌关联分类
+export async function saveBrandCategory(brandCategoryData) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/brand/catelog/save`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(brandCategoryData)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '保存品牌关联分类失败')
+  } catch (error) {
+    console.error('保存品牌关联分类失败:', error)
+    throw error
+  }
+}
+
+// 删除品牌关联分类
+export async function deleteBrandCategory(id) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/brand/catelog/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '删除品牌关联分类失败')
+  } catch (error) {
+    console.error('删除品牌关联分类失败:', error)
+    throw error
+  }
+}
+

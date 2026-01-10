@@ -65,7 +65,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="sort" label="排序" width="100" align="center" />
-        <el-table-column label="操作" width="150" align="center" fixed="right">
+        <el-table-column label="操作" width="220" align="center" fixed="right">
           <template #default="{ row }">
             <el-button
               type="primary"
@@ -74,6 +74,14 @@
               @click="handleEdit(row)"
             >
               修改
+            </el-button>
+            <el-button
+              type="success"
+              link
+              size="small"
+              @click="handleAssociateCategory(row)"
+            >
+              关联分类
             </el-button>
             <el-button
               type="danger"
@@ -168,14 +176,126 @@
         <el-button type="primary" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 关联分类对话框 -->
+    <el-dialog
+      v-model="categoryDialogVisible"
+      title="关联分类"
+      width="600px"
+      @close="handleCategoryDialogClose"
+    >
+      <div class="category-association-header">
+        <el-button type="primary" @click="openCategoryPicker">
+          <el-icon><Plus /></el-icon>
+          新增关联
+        </el-button>
+      </div>
+      <el-table
+        :data="associatedCategories"
+        style="width: 100%"
+        border
+        v-loading="categoryLoading"
+      >
+        <el-table-column type="index" label="#" width="60" align="center" />
+        <el-table-column prop="brandName" label="品牌名" width="150" />
+        <el-table-column prop="catelogName" label="分类名" min-width="200" />
+        <el-table-column label="操作" width="100" align="center">
+          <template #default="{ row }">
+            <el-button
+              type="danger"
+              link
+              size="small"
+              @click="handleRemoveCategory(row)"
+            >
+              移除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="categoryDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="categoryDialogVisible = false">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 分类选择对话框 -->
+    <el-dialog
+      v-model="categoryPickerDialogVisible"
+      title="选择分类"
+      width="600px"
+      @close="handleCategoryPickerClose"
+    >
+      <div class="category-picker-wrapper-dialog">
+        <el-input
+          v-model="selectedCategoryPath"
+          placeholder="请选择"
+          readonly
+          style="margin-bottom: 16px"
+        >
+          <template #suffix>
+            <el-icon><ArrowDown /></el-icon>
+          </template>
+        </el-input>
+        <div class="category-picker-content">
+          <div class="category-picker-columns">
+            <!-- 一级分类 -->
+            <div class="category-column">
+              <div
+                v-for="cat1 in categoryTree"
+                :key="cat1.catId"
+                class="category-item"
+                :class="{ 'category-selected': selectedLevel1?.catId === cat1.catId }"
+                @click="selectLevel1(cat1)"
+              >
+                <span>{{ cat1.name }}</span>
+                <el-icon v-if="cat1.children && cat1.children.length > 0" class="arrow-right">
+                  <ArrowRight />
+                </el-icon>
+              </div>
+            </div>
+            <!-- 二级分类 -->
+            <div v-if="selectedLevel1" class="category-column">
+              <div
+                v-for="cat2 in selectedLevel1.children || []"
+                :key="cat2.catId"
+                class="category-item"
+                :class="{ 'category-selected': selectedLevel2?.catId === cat2.catId }"
+                @click="selectLevel2(cat2)"
+              >
+                <span>{{ cat2.name }}</span>
+                <el-icon v-if="cat2.children && cat2.children.length > 0" class="arrow-right">
+                  <ArrowRight />
+                </el-icon>
+              </div>
+            </div>
+            <!-- 三级分类 -->
+            <div v-if="selectedLevel2" class="category-column">
+              <div
+                v-for="cat3 in selectedLevel2.children || []"
+                :key="cat3.catId"
+                class="category-item"
+                :class="{ 'category-selected': selectedLevel3?.catId === cat3.catId }"
+                @click="selectLevel3(cat3)"
+              >
+                <span>{{ cat3.name }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="categoryPickerDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmCategorySelection">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
-import { getBrandList, createBrand, updateBrand, uploadCeph, switchBrandShowStatus, searchBrand } from '../utils/api'
+import { Plus, ArrowDown, ArrowRight } from '@element-plus/icons-vue'
+import { getBrandList, createBrand, updateBrand, uploadCeph, switchBrandShowStatus, searchBrand, getBrandCategoryList, saveBrandCategory, deleteBrandCategory, getCategoryTree } from '../utils/api'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -187,6 +307,16 @@ const formRef = ref(null)
 const isEdit = ref(false)
 const currentEditId = ref(null)
 const logoUploading = ref(false)
+const categoryDialogVisible = ref(false)
+const categoryPickerDialogVisible = ref(false)
+const categoryLoading = ref(false)
+const associatedCategories = ref([])
+const currentBrandId = ref(null)
+const categoryTree = ref([])
+const selectedLevel1 = ref(null)
+const selectedLevel2 = ref(null)
+const selectedLevel3 = ref(null)
+const selectedCategoryPath = ref('')
 
 // 表单数据
 const formData = ref({
@@ -478,6 +608,157 @@ const handleDelete = (row) => {
   })
 }
 
+// 关联分类
+const handleAssociateCategory = async (row) => {
+  currentBrandId.value = row.brandId
+  categoryDialogVisible.value = true
+  await loadAssociatedCategories(row.brandId)
+}
+
+// 加载关联的分类列表
+const loadAssociatedCategories = async (brandId) => {
+  categoryLoading.value = true
+  try {
+    const data = await getBrandCategoryList(brandId)
+    associatedCategories.value = data || []
+  } catch (error) {
+    ElMessage.error('加载关联分类列表失败：' + error.message)
+    associatedCategories.value = []
+  } finally {
+    categoryLoading.value = false
+  }
+}
+
+// 加载分类树数据
+const loadCategoryTree = async () => {
+  try {
+    const data = await getCategoryTree()
+    categoryTree.value = data || []
+  } catch (error) {
+    ElMessage.error('加载分类数据失败：' + error.message)
+    categoryTree.value = []
+  }
+}
+
+// 打开分类选择对话框
+const openCategoryPicker = async () => {
+  if (categoryTree.value.length === 0) {
+    await loadCategoryTree()
+  }
+  categoryPickerDialogVisible.value = true
+  selectedLevel1.value = null
+  selectedLevel2.value = null
+  selectedLevel3.value = null
+  selectedCategoryPath.value = ''
+}
+
+// 关闭分类选择对话框
+const handleCategoryPickerClose = () => {
+  selectedLevel1.value = null
+  selectedLevel2.value = null
+  selectedLevel3.value = null
+  selectedCategoryPath.value = ''
+}
+
+// 查找分类的完整路径
+const findCategoryPath = (catId, categories = categoryTree.value, path = []) => {
+  for (const cat of categories) {
+    const currentPath = [...path, cat]
+    if (cat.catId === catId) {
+      return currentPath
+    }
+    if (cat.children && cat.children.length > 0) {
+      const found = findCategoryPath(catId, cat.children, currentPath)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+// 选择一级分类
+const selectLevel1 = (cat) => {
+  selectedLevel1.value = cat
+  selectedLevel2.value = null
+  selectedLevel3.value = null
+}
+
+// 选择二级分类
+const selectLevel2 = (cat) => {
+  selectedLevel2.value = cat
+  selectedLevel3.value = null
+}
+
+// 选择三级分类
+const selectLevel3 = (cat) => {
+  selectedLevel3.value = cat
+  updateCategoryPath()
+}
+
+// 更新分类路径显示
+const updateCategoryPath = () => {
+  const path = []
+  if (selectedLevel1.value) path.push(selectedLevel1.value.name)
+  if (selectedLevel2.value) path.push(selectedLevel2.value.name)
+  if (selectedLevel3.value) path.push(selectedLevel3.value.name)
+  selectedCategoryPath.value = path.join(' / ')
+}
+
+// 确认分类选择
+const confirmCategorySelection = async () => {
+  if (!selectedLevel3.value) {
+    ElMessage.warning('请选择三级分类')
+    return
+  }
+  
+  try {
+    await saveBrandCategory({
+      id: null,
+      brandId: currentBrandId.value,
+      catelogId: selectedLevel3.value.catId
+    })
+    ElMessage.success('关联成功')
+    categoryPickerDialogVisible.value = false
+    selectedLevel1.value = null
+    selectedLevel2.value = null
+    selectedLevel3.value = null
+    selectedCategoryPath.value = ''
+    // 刷新关联分类列表
+    await loadAssociatedCategories(currentBrandId.value)
+  } catch (error) {
+    ElMessage.error(error.message || '关联失败')
+  }
+}
+
+// 移除关联分类
+const handleRemoveCategory = async (row) => {
+  ElMessageBox.confirm(
+    `确定要移除关联分类"${row.catelogName}"吗？`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(async () => {
+    try {
+      await deleteBrandCategory(row.id)
+      ElMessage.success('移除成功')
+      // 刷新关联分类列表
+      await loadAssociatedCategories(currentBrandId.value)
+    } catch (error) {
+      ElMessage.error(error.message || '移除失败')
+    }
+  }).catch(() => {
+    // 取消删除
+  })
+}
+
+// 关联分类对话框关闭
+const handleCategoryDialogClose = () => {
+  currentBrandId.value = null
+  associatedCategories.value = []
+}
+
 onMounted(() => {
   loadBrandData()
 })
@@ -625,6 +906,94 @@ onMounted(() => {
 
 .no-logo {
   color: #909399;
+}
+
+.category-association-header {
+  margin-bottom: 16px;
+}
+
+.category-picker-wrapper-dialog {
+  width: 100%;
+}
+
+.category-selector-trigger {
+  cursor: pointer;
+  color: #909399;
+  transition: color 0.2s;
+}
+
+.category-selector-trigger:hover {
+  color: #409eff;
+}
+
+.category-picker-content {
+  padding: 8px 0;
+}
+
+.category-picker-columns {
+  display: flex;
+  height: 300px;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.category-column {
+  flex: 1;
+  overflow-y: auto;
+  border-right: 1px solid #e4e7ed;
+  background-color: #fff;
+}
+
+.category-column:last-child {
+  border-right: none;
+}
+
+.category-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #f5f7fa;
+}
+
+.category-item:hover {
+  background-color: #f5f7fa;
+}
+
+.category-item.category-selected {
+  background-color: #ecf5ff;
+  color: #409eff;
+  font-weight: 500;
+}
+
+.category-item .arrow-right {
+  color: #c0c4cc;
+  font-size: 14px;
+  margin-left: 8px;
+}
+
+.category-item.category-selected .arrow-right {
+  color: #409eff;
+}
+
+.category-column::-webkit-scrollbar {
+  width: 6px;
+}
+
+.category-column::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.category-column::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.category-column::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 </style>
 
