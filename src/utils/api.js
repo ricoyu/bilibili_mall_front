@@ -499,3 +499,99 @@ export async function deleteBrandCategory(id) {
   }
 }
 
+// 搜索规格参数（attrType=1）或销售属性（attrType=0）
+export async function searchAttrs(searchParams) {
+  try {
+    // 从 searchParams 中提取 attrType，默认为 1（规格参数）
+    const attrType = searchParams.attrType !== undefined ? searchParams.attrType : 1
+    const url = `${API_BASE_URL}/product/attrs/search?attrType=${attrType}`
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(searchParams)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return {
+        list: data.data || [],
+        page: data.page || {}
+      }
+    }
+    throw new Error(data.message || '搜索属性失败')
+  } catch (error) {
+    console.error('搜索属性失败:', error)
+    throw error
+  }
+}
+
+// 创建规格参数
+export async function createAttr(attrData) {
+  try {
+    // 确保 attrId 为 null（新建）
+    const requestData = { ...attrData, attrId: null }
+    const response = await fetch(`${API_BASE_URL}/product/attrs/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '创建规格参数失败')
+  } catch (error) {
+    console.error('创建规格参数失败:', error)
+    throw error
+  }
+}
+
+// 更新规格参数
+export async function updateAttr(attrData) {
+  try {
+    // attrId 不为 null（更新）
+    const response = await fetch(`${API_BASE_URL}/product/attrs/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(attrData)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '更新规格参数失败')
+  } catch (error) {
+    console.error('更新规格参数失败:', error)
+    throw error
+  }
+}
+
+// 删除属性（规格参数或销售属性）
+export async function deleteAttr(attrIds) {
+  try {
+    // 将 ID 数组或单个 ID 转换为逗号分隔的字符串
+    const idsArray = Array.isArray(attrIds) ? attrIds : [attrIds]
+    const idsParam = idsArray.join(',')
+    
+    const response = await fetch(`${API_BASE_URL}/product/attrs?ids=${idsParam}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '删除失败')
+  } catch (error) {
+    console.error('删除属性失败:', error)
+    throw error
+  }
+}

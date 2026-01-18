@@ -45,13 +45,20 @@ import MenuManagement from '../views/MenuManagement.vue'
 import CategoryManagement from '../views/CategoryManagement.vue'
 import BrandManagement from '../views/BrandManagement.vue'
 import AttrGroupManagement from '../views/AttrGroupManagement.vue'
+import AttrManagement from '../views/AttrManagement.vue'
+import SaleAttrManagement from '../views/SaleAttrManagement.vue'
 
 // URL到组件的映射
 const urlComponentMap = {
   'sys/menu': MenuManagement,
   'product/category': CategoryManagement,
   'product/brand': BrandManagement,
-  'product/attrgroup': AttrGroupManagement
+  'product/attrgroup': AttrGroupManagement,
+  'product/attr': AttrManagement,
+  'product/attrs': AttrManagement,
+  'product/baseattr': AttrManagement,
+  'product/saleattr': SaleAttrManagement,
+  'product/saleattrs': SaleAttrManagement
   // 可以在这里添加更多URL到组件的映射
 }
 
