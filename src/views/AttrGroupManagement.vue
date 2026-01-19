@@ -71,8 +71,16 @@
               </template>
             </el-table-column>
             <el-table-column prop="catelogId" label="所属分类id" width="120" align="center" />
-            <el-table-column label="操作" width="150" align="center" fixed="right">
+            <el-table-column label="操作" width="250" align="center" fixed="right">
               <template #default="{ row }">
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
+                  @click="handleRelation(row)"
+                >
+                  关联
+                </el-button>
                 <el-button
                   type="primary"
                   link
@@ -279,6 +287,125 @@
         <el-button @click="iconDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <!-- 关联规格参数对话框 -->
+    <el-dialog
+      v-model="relationDialogVisible"
+      :title="`属性分组『${currentAttrGroupName}』关联的规格参数`"
+      width="800px"
+      @close="handleRelationDialogClose"
+    >
+      <div class="relation-dialog-header">
+        <el-button type="primary" @click="handleNewRelation">
+          新建关联
+        </el-button>
+        <el-button type="danger" @click="handleBatchDeleteRelation" :disabled="selectedRelationRows.length === 0">
+          批量删除
+        </el-button>
+      </div>
+      <el-table
+        :data="relationTableData"
+        style="width: 100%"
+        border
+        v-loading="relationLoading"
+        @selection-change="handleRelationSelectionChange"
+      >
+        <el-table-column type="selection" width="55" align="center" />
+        <el-table-column type="index" label="#" width="60" align="center" />
+        <el-table-column prop="attrName" label="属性名" width="200" show-overflow-tooltip />
+        <el-table-column prop="valueSelect" label="可选值" min-width="300" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-tag v-if="row.valueSelect" type="primary" size="small" style="margin-right: 4px">
+              {{ row.valueSelect }}
+            </el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" align="center">
+          <template #default="{ row }">
+            <el-button
+              type="danger"
+              link
+              size="small"
+              @click="handleDeleteRelation(row)"
+            >
+              删除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="relationDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 选择属性对话框 -->
+    <el-dialog
+      v-model="selectAttrDialogVisible"
+      title="选择属性"
+      width="800px"
+      @close="handleSelectAttrDialogClose"
+    >
+      <div class="select-attr-dialog-content">
+        <div class="select-attr-search-box">
+          <el-input
+            v-model="selectAttrSearchKeyword"
+            placeholder="参数名"
+            style="width: 200px"
+            clearable
+            @keyup.enter="handleSelectAttrSearch"
+            @clear="handleSelectAttrSearchClear"
+          />
+          <el-button type="primary" style="margin-left: 10px" @click="handleSelectAttrSearch">
+            查询
+          </el-button>
+        </div>
+        <el-table
+          :data="selectAttrTableData"
+          style="width: 100%"
+          border
+          v-loading="selectAttrLoading"
+          @selection-change="handleSelectAttrSelectionChange"
+        >
+          <el-table-column type="selection" width="55" align="center" />
+          <el-table-column prop="attrId" label="属性Id" width="100" align="center" />
+          <el-table-column prop="attrName" label="属性名" width="200" show-overflow-tooltip />
+          <el-table-column prop="icon" label="属性图标" width="120" align="center">
+            <template #default="{ row }">
+              <el-icon v-if="row.icon" :size="20">
+                <component :is="getIconComponent(row.icon)" />
+              </el-icon>
+              <span v-else>-</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="valueSelect" label="可选值列表" min-width="300" show-overflow-tooltip>
+            <template #default="{ row }">
+              <el-tag v-if="row.valueSelect" type="primary" size="small" style="margin-right: 4px">
+                {{ row.valueSelect }}
+              </el-tag>
+              <span v-else>-</span>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div class="select-attr-pagination">
+          <el-pagination
+            v-model:current-page="selectAttrPagination.current"
+            v-model:page-size="selectAttrPagination.size"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="selectAttrPagination.total"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handleSelectAttrSizeChange"
+            @current-change="handleSelectAttrCurrentChange"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="selectAttrDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleConfirmAddRelation" :disabled="selectedAttrRows.length === 0">
+          确认新增
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -286,7 +413,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, ArrowDown, ArrowRight } from '@element-plus/icons-vue'
-import { getCategoryTree, getAttrGroupList, createAttrGroup, updateAttrGroup, searchAttrGroup, deleteAttrGroup } from '../utils/api'
+import { getCategoryTree, getAttrGroupList, createAttrGroup, updateAttrGroup, searchAttrGroup, deleteAttrGroup, getAttrGroupRelations, deleteAttrGroupRelation, getAttrGroupNoRelationAttrs, createAttrGroupRelations } from '../utils/api'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import { ClickOutside as vClickOutside } from 'element-plus'
 
@@ -310,6 +437,27 @@ const selectedLevel1 = ref(null)
 const selectedLevel2 = ref(null)
 const selectedLevel3 = ref(null)
 const selectedCategoryPath = ref('')
+
+// 关联规格参数相关
+const relationDialogVisible = ref(false)
+const relationTableData = ref([])
+const relationLoading = ref(false)
+const selectedRelationRows = ref([])
+const currentAttrGroupId = ref(null)
+const currentAttrGroupName = ref('')
+const currentAttrGroupCatelogId = ref(null)
+
+// 选择属性对话框相关
+const selectAttrDialogVisible = ref(false)
+const selectAttrTableData = ref([])
+const selectAttrLoading = ref(false)
+const selectedAttrRows = ref([])
+const selectAttrSearchKeyword = ref('')
+const selectAttrPagination = ref({
+  current: 1,
+  size: 10,
+  total: 0
+})
 
 // 分页信息
 const pagination = ref({
@@ -780,6 +928,210 @@ const handleDelete = async (row) => {
   })
 }
 
+// 处理关联按钮点击
+const handleRelation = async (row) => {
+  currentAttrGroupId.value = row.attrGroupId
+  currentAttrGroupName.value = row.attrGroupName
+  currentAttrGroupCatelogId.value = row.catelogId
+  relationDialogVisible.value = true
+  await loadRelationData()
+}
+
+// 加载关联的规格参数数据
+const loadRelationData = async () => {
+  if (!currentAttrGroupId.value) return
+  relationLoading.value = true
+  try {
+    const data = await getAttrGroupRelations(currentAttrGroupId.value)
+    relationTableData.value = data || []
+  } catch (error) {
+    ElMessage.error('加载关联规格参数失败：' + error.message)
+    relationTableData.value = []
+  } finally {
+    relationLoading.value = false
+  }
+}
+
+// 关联对话框关闭
+const handleRelationDialogClose = () => {
+  relationTableData.value = []
+  selectedRelationRows.value = []
+  currentAttrGroupId.value = null
+  currentAttrGroupName.value = ''
+  currentAttrGroupCatelogId.value = null
+}
+
+// 关联表格选择改变
+const handleRelationSelectionChange = (selection) => {
+  selectedRelationRows.value = selection
+}
+
+// 新建关联
+const handleNewRelation = () => {
+  if (!currentAttrGroupCatelogId.value) {
+    ElMessage.warning('属性分组未设置分类，无法获取未关联属性')
+    return
+  }
+  selectAttrDialogVisible.value = true
+  selectAttrSearchKeyword.value = ''
+  selectAttrPagination.value.current = 1
+  loadSelectAttrData()
+}
+
+// 加载未关联的属性数据
+const loadSelectAttrData = async () => {
+  if (!currentAttrGroupCatelogId.value) return
+  selectAttrLoading.value = true
+  try {
+    const searchParams = {
+      pageNum: selectAttrPagination.value.current,
+      pageSize: selectAttrPagination.value.size
+    }
+    if (selectAttrSearchKeyword.value) {
+      searchParams.key = selectAttrSearchKeyword.value.trim()
+    }
+    
+    const result = await getAttrGroupNoRelationAttrs(currentAttrGroupCatelogId.value, searchParams)
+    selectAttrTableData.value = result.list || []
+    if (result.page) {
+      selectAttrPagination.value.current = result.page.pageNum || 1
+      selectAttrPagination.value.size = result.page.pageSize || 10
+      selectAttrPagination.value.total = result.page.total || 0
+    }
+  } catch (error) {
+    ElMessage.error('加载未关联属性失败：' + error.message)
+    selectAttrTableData.value = []
+    selectAttrPagination.value.total = 0
+  } finally {
+    selectAttrLoading.value = false
+  }
+}
+
+// 选择属性对话框关闭
+const handleSelectAttrDialogClose = () => {
+  selectAttrTableData.value = []
+  selectedAttrRows.value = []
+  selectAttrSearchKeyword.value = ''
+  selectAttrPagination.value = {
+    current: 1,
+    size: 10,
+    total: 0
+  }
+}
+
+// 选择属性表格选择改变
+const handleSelectAttrSelectionChange = (selection) => {
+  selectedAttrRows.value = selection
+}
+
+// 搜索未关联属性
+const handleSelectAttrSearch = () => {
+  selectAttrPagination.value.current = 1
+  loadSelectAttrData()
+}
+
+// 清除搜索
+const handleSelectAttrSearchClear = () => {
+  selectAttrPagination.value.current = 1
+  loadSelectAttrData()
+}
+
+// 分页大小改变
+const handleSelectAttrSizeChange = (size) => {
+  selectAttrPagination.value.size = size
+  selectAttrPagination.value.current = 1
+  loadSelectAttrData()
+}
+
+// 当前页改变
+const handleSelectAttrCurrentChange = (page) => {
+  selectAttrPagination.value.current = page
+  loadSelectAttrData()
+}
+
+// 确认新增关联
+const handleConfirmAddRelation = () => {
+  if (selectedAttrRows.value.length === 0) {
+    ElMessage.warning('请选择要关联的属性')
+    return
+  }
+  ElMessageBox.confirm(
+    `确定要关联选中的 ${selectedAttrRows.value.length} 个属性吗？`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(async () => {
+    try {
+      const attrIds = selectedAttrRows.value.map(row => row.attrId)
+      await createAttrGroupRelations(currentAttrGroupId.value, attrIds)
+      ElMessage.success('关联成功')
+      selectAttrDialogVisible.value = false
+      // 刷新关联列表
+      await loadRelationData()
+    } catch (error) {
+      ElMessage.error('关联失败：' + error.message)
+    }
+  }).catch(() => {
+    // 取消
+  })
+}
+
+// 批量删除关联
+const handleBatchDeleteRelation = () => {
+  if (selectedRelationRows.value.length === 0) {
+    ElMessage.warning('请选择要删除的数据')
+    return
+  }
+  ElMessageBox.confirm(
+    `确定要删除选中的 ${selectedRelationRows.value.length} 条关联吗？`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(async () => {
+    try {
+      // 批量删除关联关系
+      const ids = selectedRelationRows.value.map(row => row.id)
+      await deleteAttrGroupRelation(ids)
+      ElMessage.success('批量删除成功')
+      selectedRelationRows.value = []
+      await loadRelationData()
+    } catch (error) {
+      ElMessage.error('批量删除失败：' + error.message)
+    }
+  }).catch(() => {
+    // 取消删除
+  })
+}
+
+// 删除单个关联
+const handleDeleteRelation = (row) => {
+  ElMessageBox.confirm(
+    `确定要删除关联的规格参数"${row.attrName}"吗？`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(async () => {
+    try {
+      await deleteAttrGroupRelation(row.id)
+      ElMessage.success('删除成功')
+      await loadRelationData()
+    } catch (error) {
+      ElMessage.error('删除失败：' + error.message)
+    }
+  }).catch(() => {
+    // 取消删除
+  })
+}
+
 onMounted(() => {
   loadCategoryTree()
   // 页面加载时调用接口，不传 catelogId
@@ -1069,6 +1421,32 @@ onMounted(() => {
 
 .category-column::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+.relation-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.select-attr-dialog-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.select-attr-search-box {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.select-attr-pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
 

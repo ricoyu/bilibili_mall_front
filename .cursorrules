@@ -1,0 +1,318 @@
+# Cursor Rules for Bilibili Mall Font Project
+
+## Project Overview
+Vue 3 + Vite + Element Plus 后台管理系统，用于商品管理。
+
+## Technology Stack
+- **Framework**: Vue 3.3.4 (Composition API with `<script setup>`)
+- **Build Tool**: Vite 4.5.0
+- **UI Library**: Element Plus 2.4.4
+- **Icons**: @element-plus/icons-vue 2.3.1
+- **Router**: Vue Router 4.2.5 (Hash Mode)
+- **Language**: JavaScript (ES Modules)
+
+## Code Style Guidelines
+
+### Vue Component Structure
+1. **Always use `<script setup>` syntax** - No Options API
+2. **Import order**:
+   ```javascript
+   // 1. Vue core imports
+   import { ref, computed, watch, onMounted } from 'vue'
+   // 2. Element Plus imports
+   import { ElMessage, ElMessageBox } from 'element-plus'
+   import { Plus, Search } from '@element-plus/icons-vue'
+   // 3. Local imports
+   import { getCategoryTree, searchAttrs } from '../utils/api'
+   ```
+3. **Template structure**: template → script → style (scoped)
+4. **Use Composition API**: `ref`, `computed`, `watch`, `onMounted`, etc.
+
+### Naming Conventions
+- **Components**: PascalCase (e.g., `AttrGroupManagement.vue`, `SaleAttrManagement.vue`)
+- **Functions**: camelCase (e.g., `handleSearch`, `loadData`, `handleEdit`)
+- **Variables**: camelCase (e.g., `tableData`, `searchKeyword`, `dialogVisible`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `API_BASE_URL`)
+- **API Functions**: camelCase with verb prefix (e.g., `getCategoryTree`, `createAttr`, `deleteAttr`)
+
+### API Integration Pattern
+
+#### API Base Configuration
+- **Base URL**: `http://localhost:8070`
+- **Location**: All API functions in `src/utils/api.js`
+- **Response Format**: 
+  ```javascript
+  {
+    code: '0' | status: 'success',
+    data: any,
+    page?: { pageNum, pageSize, total, totalPages },
+    message?: string
+  }
+  ```
+
+#### API Function Patterns
+```javascript
+// GET request
+export async function getXxx(params) {
+  const response = await fetch(`${API_BASE_URL}/path`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' }
+  })
+  const data = await response.json()
+  if (data.code === '0' || data.status === 'success') {
+    return data.data || []
+  }
+  throw new Error(data.message || '操作失败')
+}
+
+// POST request
+export async function createXxx(requestData) {
+  const response = await fetch(`${API_BASE_URL}/path`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestData)
+  })
+  // ... same response handling
+}
+
+// DELETE request
+export async function deleteXxx(ids) {
+  // Convert array to comma-separated string for query params
+  const idsParam = Array.isArray(ids) ? ids.join(',') : ids
+  const response = await fetch(`${API_BASE_URL}/path?ids=${idsParam}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' }
+  })
+  // ... same response handling
+}
+```
+
+### Component Patterns
+
+#### List/Management Pages Structure
+```vue
+<template>
+  <div class="management-page">
+    <div class="content-wrapper">
+      <!-- Left sidebar: Category tree (if applicable) -->
+      <div class="category-tree-container">
+        <el-tree :data="categoryTree" @node-click="handleCategoryClick" />
+      </div>
+      
+      <!-- Right content area -->
+      <div class="content-area">
+        <!-- Search and action bar -->
+        <div class="page-header">
+          <div class="search-box">
+            <el-input v-model="searchKeyword" placeholder="搜索关键词" />
+            <el-button type="primary" @click="handleSearch">查询</el-button>
+            <el-button type="success" @click="handleQueryAll">查询全部</el-button>
+          </div>
+          <div class="action-buttons">
+            <el-button type="primary" @click="handleAdd">新增</el-button>
+            <el-button type="danger" @click="handleBatchDelete">批量删除</el-button>
+          </div>
+        </div>
+        
+        <!-- Data table -->
+        <div class="table-container">
+          <el-table :data="tableData" v-loading="loading">
+            <el-table-column type="selection" />
+            <!-- columns -->
+            <el-table-column label="操作" width="250" fixed="right">
+              <template #default="{ row }">
+                <el-button type="primary" link size="small" @click="handleEdit(row)">修改</el-button>
+                <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          
+          <!-- Pagination -->
+          <el-pagination
+            v-model:current-page="pagination.current"
+            v-model:page-size="pagination.size"
+            :total="pagination.total"
+            layout="total, sizes, prev, pager, next, jumper"
+          />
+        </div>
+      </div>
+    </div>
+    
+    <!-- Dialogs for add/edit -->
+  </div>
+</template>
+```
+
+#### Common State Variables
+```javascript
+const loading = ref(false)
+const tableData = ref([])
+const searchKeyword = ref('')
+const selectedRows = ref([])
+const dialogVisible = ref(false)
+const formData = ref({})
+const pagination = ref({
+  current: 1,
+  size: 10,
+  total: 0
+})
+```
+
+#### Common Functions Pattern
+```javascript
+// Load data
+const loadData = async (catelogId = null) => {
+  loading.value = true
+  try {
+    const searchParams = {
+      pageNum: pagination.value.current,
+      pageSize: pagination.value.size,
+      // ... other params
+    }
+    if (catelogId) searchParams.catelogId = catelogId
+    if (searchKeyword.value) searchParams.key = searchKeyword.value.trim()
+    
+    const result = await searchXxx(searchParams)
+    tableData.value = result.list || []
+    if (result.page) {
+      pagination.value.current = result.page.pageNum || 1
+      pagination.value.size = result.page.pageSize || 10
+      pagination.value.total = result.page.total || 0
+    }
+  } catch (error) {
+    ElMessage.error('加载数据失败：' + error.message)
+    tableData.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// Delete with confirmation
+const handleDelete = (row) => {
+  ElMessageBox.confirm(
+    `确定要删除"${row.name}"吗？`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(async () => {
+    try {
+      await deleteXxx(row.id)
+      ElMessage.success('删除成功')
+      loadData()
+    } catch (error) {
+      ElMessage.error('删除失败：' + error.message)
+    }
+  }).catch(() => {
+    // User cancelled
+  })
+}
+```
+
+### Error Handling
+- **Always wrap API calls in try/catch**
+- **Show user-friendly error messages**: `ElMessage.error('操作失败：' + error.message)`
+- **Use ElMessageBox.confirm for destructive actions**
+- **Handle empty/null data gracefully**: `data.data || []`, `row.name || '-'`
+
+### UI/UX Guidelines
+- Use Element Plus components consistently
+- Show loading states: `v-loading="loading"` on tables
+- Use appropriate button types:
+  - `type="primary"` for main actions
+  - `type="success"` for query all
+  - `type="danger"` for delete actions
+- Use `link` style buttons in table operations
+- Maintain consistent spacing and layout
+- Use `show-overflow-tooltip` for long text columns
+
+### Template Literal Best Practices
+⚠️ **Important**: Avoid mixing quotes inside template literals
+```javascript
+// ❌ WRONG - Causes "Unterminated template" error
+:title="`属性分组"${name}"关联的规格参数`"
+
+// ✅ CORRECT - Use Chinese punctuation or single quotes
+:title="`属性分组『${name}』关联的规格参数`"
+:title="`属性分组'${name}'关联的规格参数`"
+```
+
+### Business Logic Rules
+
+#### Attribute Types
+- **规格参数 (Specification Parameters)**: `attrType = 1`
+- **销售属性 (Sale Attributes)**: `attrType = 0`
+- Always specify `attrType` when searching/creating attributes
+
+#### Category Tree
+- 3-level hierarchy: 一级分类 → 二级分类 → 三级分类
+- Use `getCategoryTree()` to load tree data
+- Category picker uses cascading columns UI
+
+#### URL Component Mapping
+- Map menu URLs to components in `ContentArea.vue`:
+  ```javascript
+  const urlComponentMap = {
+    'sys/menu': MenuManagement,
+    'product/category': CategoryManagement,
+    'product/brand': BrandManagement,
+    'product/attrgroup': AttrGroupManagement,
+    'product/attr': AttrManagement,
+    'product/attrs': AttrManagement,
+    'product/baseattr': AttrManagement,
+    'product/saleattr': SaleAttrManagement,
+    'product/saleattrs': SaleAttrManagement
+  }
+  ```
+
+### File Organization
+```
+src/
+  components/          # Reusable components
+    ContentArea.vue   # Tab-based content area
+    SidebarMenu.vue   # Navigation menu
+  views/              # Page components
+    MenuManagement.vue
+    CategoryManagement.vue
+    BrandManagement.vue
+    AttrGroupManagement.vue
+    AttrManagement.vue      # 规格参数 (attrType=1)
+    SaleAttrManagement.vue  # 销售属性 (attrType=0)
+  utils/
+    api.js            # All API functions
+  router/
+    index.js          # Router configuration
+  main.js             # App entry point
+  App.vue             # Root component
+```
+
+### Common API Endpoints Pattern
+- **Search**: `POST /product/xxx/search?attrType=1`
+- **Create/Update**: `POST /product/xxx/` (attrId null = create, non-null = update)
+- **Delete**: `DELETE /product/xxx?ids=1,2,3`
+- **Get Relations**: `GET /product/attrgroup/{id}/attr/relations`
+
+### Language Requirements
+- **All user-facing text**: Chinese Simplified (简体中文)
+- **Comments**: Can be Chinese or English
+- **Variable/Function names**: English (camelCase)
+
+### Code Quality
+- Always check for null/undefined before accessing properties
+- Use optional chaining: `data?.data?.list`
+- Provide default values: `data.data || []`
+- Clear state on dialog close
+- Reset form validation on dialog open/close
+
+### Testing Checklist
+When implementing new features:
+1. ✅ API function exported from `api.js`
+2. ✅ Component imports the API function
+3. ✅ Error handling with try/catch
+4. ✅ Loading states displayed
+5. ✅ Success/error messages shown
+6. ✅ Form validation rules defined
+7. ✅ Dialog state properly managed
+8. ✅ Data refreshed after operations

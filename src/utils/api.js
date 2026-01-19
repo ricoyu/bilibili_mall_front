@@ -438,6 +438,98 @@ export async function deleteAttrGroup(attrGroupIds) {
   }
 }
 
+// 获取属性分组关联的规格参数列表
+export async function getAttrGroupRelations(attrGroupId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/attrgroup/${attrGroupId}/attr/relations`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data.data || []
+    }
+    throw new Error(data.message || '获取关联规格参数失败')
+  } catch (error) {
+    console.error('获取关联规格参数失败:', error)
+    throw error
+  }
+}
+
+// 删除属性分组关联的规格参数（支持单个或批量删除）
+export async function deleteAttrGroupRelation(relationIds) {
+  try {
+    // 将 ID 数组或单个 ID 转换为逗号分隔的字符串
+    const idsArray = Array.isArray(relationIds) ? relationIds : [relationIds]
+    const idsParam = idsArray.join(',')
+    
+    const response = await fetch(`${API_BASE_URL}/product/attrgroup/attr/relations?ids=${idsParam}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '删除关联失败')
+  } catch (error) {
+    console.error('删除关联失败:', error)
+    throw error
+  }
+}
+
+// 获取属性分组未关联的规格参数列表
+export async function getAttrGroupNoRelationAttrs(catelogId, searchParams = {}) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/attrgroup/${catelogId}/norelation/attrs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(searchParams)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return {
+        list: data.data || [],
+        page: data.page || {}
+      }
+    }
+    throw new Error(data.message || '获取未关联属性失败')
+  } catch (error) {
+    console.error('获取未关联属性失败:', error)
+    throw error
+  }
+}
+
+// 创建属性分组关联的规格参数
+export async function createAttrGroupRelations(attrGroupId, attrIds) {
+  try {
+    // 将 ID 数组转换为逗号分隔的字符串
+    const idsArray = Array.isArray(attrIds) ? attrIds : [attrIds]
+    const idsParam = idsArray.join(',')
+    
+    const response = await fetch(`${API_BASE_URL}/product/attrgroup/${attrGroupId}/attr/relations?attrIds=${idsParam}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '创建关联失败')
+  } catch (error) {
+    console.error('创建关联失败:', error)
+    throw error
+  }
+}
+
 // 获取品牌关联的分类列表
 export async function getBrandCategoryList(brandId) {
   try {
