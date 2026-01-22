@@ -533,7 +533,7 @@ export async function createAttrGroupRelations(attrGroupId, attrIds) {
 // 获取品牌关联的分类列表
 export async function getBrandCategoryList(brandId) {
   try {
-    const response = await fetch(`${API_BASE_URL}/product/brand/catelog/list?brandId=${brandId}`, {
+    const response = await fetch(`${API_BASE_URL}/product/brand/${brandId}/catelog/relations`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
@@ -553,7 +553,7 @@ export async function getBrandCategoryList(brandId) {
 // 保存品牌关联分类
 export async function saveBrandCategory(brandCategoryData) {
   try {
-    const response = await fetch(`${API_BASE_URL}/product/brand/catelog/save`, {
+    const response = await fetch(`${API_BASE_URL}/product/brand/catelog/relations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -572,9 +572,9 @@ export async function saveBrandCategory(brandCategoryData) {
 }
 
 // 删除品牌关联分类
-export async function deleteBrandCategory(id) {
+export async function deleteBrandCategory(catelogId, relationId) {
   try {
-    const response = await fetch(`${API_BASE_URL}/product/brand/catelog/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/product/brand/catelog/${catelogId}/relations/${relationId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json'
@@ -684,6 +684,26 @@ export async function deleteAttr(attrIds) {
     throw new Error(data.message || '删除失败')
   } catch (error) {
     console.error('删除属性失败:', error)
+    throw error
+  }
+}
+
+// 获取分类下的品牌列表
+export async function getCategoryBrands(catelogId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/category/${catelogId}/brands`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data.data || []
+    }
+    throw new Error(data.message || '获取品牌列表失败')
+  } catch (error) {
+    console.error('获取品牌列表失败:', error)
     throw error
   }
 }

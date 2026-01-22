@@ -47,6 +47,7 @@ import BrandManagement from '../views/BrandManagement.vue'
 import AttrGroupManagement from '../views/AttrGroupManagement.vue'
 import AttrManagement from '../views/AttrManagement.vue'
 import SaleAttrManagement from '../views/SaleAttrManagement.vue'
+import ProductPublish from '../views/ProductPublish.vue'
 
 // URL到组件的映射
 const urlComponentMap = {
@@ -58,7 +59,10 @@ const urlComponentMap = {
   'product/attrs': AttrManagement,
   'product/baseattr': AttrManagement,
   'product/saleattr': SaleAttrManagement,
-  'product/saleattrs': SaleAttrManagement
+  'product/saleattrs': SaleAttrManagement,
+  'product/publish': ProductPublish,
+  'product/spu/publish': ProductPublish,
+  'product/spuadd': ProductPublish
   // 可以在这里添加更多URL到组件的映射
 }
 

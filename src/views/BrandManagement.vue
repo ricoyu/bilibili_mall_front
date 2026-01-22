@@ -741,7 +741,7 @@ const handleRemoveCategory = async (row) => {
     }
   ).then(async () => {
     try {
-      await deleteBrandCategory(row.id)
+      await deleteBrandCategory(row.catelogId, row.id)
       ElMessage.success('移除成功')
       // 刷新关联分类列表
       await loadAssociatedCategories(currentBrandId.value)
