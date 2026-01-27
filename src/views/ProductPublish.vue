@@ -149,11 +149,33 @@
                 <el-upload
                   class="upload-demo"
                   action="#"
-                  :auto-upload="false"
+                  :auto-upload="true"
+                  :http-request="handleDetailImagesUpload"
+                  :before-upload="beforeImageUpload"
                   :show-file-list="false"
+                  multiple
                 >
-                  <el-icon class="upload-icon"><Plus /></el-icon>
-                  <div class="upload-text">请上传商品详情图集</div>
+                  <div v-if="detailImages.length === 0" class="upload-placeholder">
+                    <el-icon class="upload-icon"><Plus /></el-icon>
+                    <div class="upload-text">请上传商品详情图集</div>
+                  </div>
+                  <div v-else class="image-preview-list">
+                    <div
+                      v-for="(url, index) in detailImages"
+                      :key="index"
+                      class="image-preview-item"
+                    >
+                      <img :src="url" alt="详情图" />
+                      <div class="image-actions">
+                        <el-icon class="delete-icon" @click.stop="removeDetailImage(index)">
+                          <Close />
+                        </el-icon>
+                      </div>
+                    </div>
+                    <div class="image-preview-item add-more">
+                      <el-icon class="upload-icon"><Plus /></el-icon>
+                    </div>
+                  </div>
                 </el-upload>
               </div>
             </el-form-item>
@@ -162,11 +184,33 @@
                 <el-upload
                   class="upload-demo"
                   action="#"
-                  :auto-upload="false"
+                  :auto-upload="true"
+                  :http-request="handleProductImagesUpload"
+                  :before-upload="beforeImageUpload"
                   :show-file-list="false"
+                  multiple
                 >
-                  <el-icon class="upload-icon"><Plus /></el-icon>
-                  <div class="upload-text">请上传商品图片集</div>
+                  <div v-if="productImages.length === 0" class="upload-placeholder">
+                    <el-icon class="upload-icon"><Plus /></el-icon>
+                    <div class="upload-text">请上传商品图片集</div>
+                  </div>
+                  <div v-else class="image-preview-list">
+                    <div
+                      v-for="(url, index) in productImages"
+                      :key="index"
+                      class="image-preview-item"
+                    >
+                      <img :src="url" alt="商品图" />
+                      <div class="image-actions">
+                        <el-icon class="delete-icon" @click.stop="removeProductImage(index)">
+                          <Close />
+                        </el-icon>
+                      </div>
+                    </div>
+                    <div class="image-preview-item add-more">
+                      <el-icon class="upload-icon"><Plus /></el-icon>
+                    </div>
+                  </div>
                 </el-upload>
               </div>
             </el-form-item>
@@ -175,7 +219,108 @@
 
         <!-- 步骤2: 规格参数 -->
         <div v-if="currentStep === 1" class="step-panel">
-          <div class="step-placeholder">规格参数设置（待实现）</div>
+          <div v-loading="attrGroupsLoading" class="spec-params-container">
+            <div v-if="attrGroups.length === 0 && !attrGroupsLoading" class="empty-state">
+              <el-empty description="该分类暂无规格参数" />
+            </div>
+            <div v-else class="spec-params-layout">
+              <!-- 左侧：属性组列表 -->
+              <div class="attr-groups-sidebar">
+                <div
+                  v-for="group in attrGroups"
+                  :key="group.attrGroupId"
+                  class="attr-group-item"
+                  :class="{ 'attr-group-active': selectedAttrGroupId === group.attrGroupId }"
+                  @click="selectAttrGroup(group.attrGroupId)"
+                >
+                  {{ group.attrGroupName }}
+                </div>
+              </div>
+              <!-- 右侧：属性输入区域 -->
+              <div class="attr-inputs-area">
+                <div v-if="selectedAttrGroup" class="attr-inputs-content">
+                  <div
+                    v-for="attr in selectedAttrGroup.attrs || []"
+                    :key="attr.attrId"
+                    class="attr-input-row"
+                  >
+                    <div class="attr-label">{{ attr.attrName }}</div>
+                    <div class="attr-input-wrapper">
+                      <!-- valueType为"多选"时：使用valueSelect的下拉选择（优先判断，包括上市年份等多选属性） -->
+                      <el-select
+                        v-if="isMultiSelect(attr)"
+                        v-model="attrValues[attr.attrId]"
+                        :placeholder="`请选择${attr.attrName}`"
+                        class="attr-input"
+                        clearable
+                      >
+                        <el-option
+                          v-for="option in getSelectOptions(attr)"
+                          :key="option"
+                          :label="option"
+                          :value="option"
+                        />
+                      </el-select>
+                      <!-- 上市月份：下拉选择（仅当不是多选类型时使用硬编码的月份选项） -->
+                      <el-select
+                        v-else-if="attr.attrName === '上市月份'"
+                        v-model="attrValues[attr.attrId]"
+                        placeholder="请选择月份"
+                        class="attr-input"
+                        clearable
+                      >
+                        <el-option
+                          v-for="month in monthOptions"
+                          :key="month.value"
+                          :label="month.label"
+                          :value="month.value"
+                        />
+                      </el-select>
+                      <!-- 上市年份：下拉选择（仅当不是多选类型时使用硬编码的年份选项） -->
+                      <el-select
+                        v-else-if="attr.attrName === '上市年份'"
+                        v-model="attrValues[attr.attrId]"
+                        placeholder="请选择年份"
+                        class="attr-input"
+                        clearable
+                      >
+                        <el-option
+                          v-for="year in yearOptions"
+                          :key="year.value"
+                          :label="year.label"
+                          :value="year.value"
+                        />
+                      </el-select>
+                      <!-- 其他属性：普通输入框 -->
+                      <el-input
+                        v-else
+                        v-model="attrValues[attr.attrId]"
+                        placeholder="请选择或输入值"
+                        class="attr-input"
+                        clearable
+                      >
+                        <template #suffix>
+                          <el-icon><ArrowDown /></el-icon>
+                        </template>
+                      </el-input>
+                      <el-checkbox
+                        v-model="quickShowAttrs[attr.attrId]"
+                        class="quick-show-checkbox"
+                      >
+                        快速展示
+                      </el-checkbox>
+                    </div>
+                  </div>
+                  <div v-if="!selectedAttrGroup.attrs || selectedAttrGroup.attrs.length === 0" class="empty-attrs">
+                    <el-empty description="该属性组暂无属性" :image-size="80" />
+                  </div>
+                </div>
+                <div v-else class="no-selection">
+                  <el-empty description="请选择属性组" :image-size="80" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 步骤3: 销售属性 -->
@@ -214,8 +359,8 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, ArrowDown, ArrowRight } from '@element-plus/icons-vue'
-import { getCategoryTree, getCategoryBrands } from '../utils/api'
+import { Plus, ArrowDown, ArrowRight, Close } from '@element-plus/icons-vue'
+import { getCategoryTree, getCategoryBrands, uploadCeph, getCategoryAttrGroupsWithAttrs } from '../utils/api'
 import { ClickOutside as vClickOutside } from 'element-plus'
 
 const currentStep = ref(0)
@@ -228,6 +373,36 @@ const selectedCategoryPath = ref('')
 const brandList = ref([])
 const brandLoading = ref(false)
 const basicInfoFormRef = ref(null)
+const detailImages = ref([]) // 商品详情图集
+const productImages = ref([]) // 商品图集
+const detailImagesUploading = ref(false)
+const productImagesUploading = ref(false)
+const attrGroups = ref([]) // 属性组列表
+const attrGroupsLoading = ref(false)
+const selectedAttrGroupId = ref(null)
+const selectedAttrGroup = ref(null)
+const attrValues = ref({}) // 属性值 { attrId: value }
+const quickShowAttrs = ref({}) // 快速展示属性 { attrId: boolean }
+
+// 月份选项（1-12月）
+const monthOptions = ref(
+  Array.from({ length: 12 }, (_, i) => ({
+    value: String(i + 1),
+    label: `${i + 1}月`
+  }))
+)
+
+// 年份选项（当前年份前后10年）
+const currentYear = new Date().getFullYear()
+const yearOptions = ref(
+  Array.from({ length: 21 }, (_, i) => {
+    const year = currentYear - 10 + i
+    return {
+      value: String(year),
+      label: `${year}年`
+    }
+  })
+)
 
 // 基本信息表单数据
 const basicInfoForm = ref({
@@ -240,8 +415,8 @@ const basicInfoForm = ref({
     buyBounds: 0,
     growBounds: 0
   },
-  decript: '',
-  images: []
+  decript: '', // 商品介绍图片URL，多个用逗号分隔
+  images: [] // 商品图集URL数组
 })
 
 // 表单验证规则
@@ -355,11 +530,132 @@ const findCategoryPath = (catId, categories = categoryTree.value, path = []) => 
   return null
 }
 
+// 上传前验证
+const beforeImageUpload = (file) => {
+  const isImage = file.type?.startsWith('image/')
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件')
+    return false
+  }
+  // 文件大小限制：10MB (10 * 1024 * 1024 字节)
+  const maxSize = 10 * 1024 * 1024 // 10MB
+  if (file.size > maxSize) {
+    ElMessage.error('图片大小不能超过 10MB')
+    return false
+  }
+  return true
+}
+
+// 上传商品详情图
+const handleDetailImagesUpload = async (options) => {
+  const { file } = options
+  detailImagesUploading.value = true
+  try {
+    const url = await uploadCeph(file)
+    detailImages.value.push(url)
+    // 更新表单数据，多个URL用逗号分隔
+    basicInfoForm.value.decript = detailImages.value.join(',')
+    ElMessage.success('上传成功')
+  } catch (error) {
+    ElMessage.error(error.message || '上传失败')
+  } finally {
+    detailImagesUploading.value = false
+  }
+}
+
+// 上传商品图集
+const handleProductImagesUpload = async (options) => {
+  const { file } = options
+  productImagesUploading.value = true
+  try {
+    const url = await uploadCeph(file)
+    productImages.value.push(url)
+    // 更新表单数据
+    basicInfoForm.value.images = [...productImages.value]
+    ElMessage.success('上传成功')
+  } catch (error) {
+    ElMessage.error(error.message || '上传失败')
+  } finally {
+    productImagesUploading.value = false
+  }
+}
+
+// 删除商品详情图
+const removeDetailImage = (index) => {
+  detailImages.value.splice(index, 1)
+  basicInfoForm.value.decript = detailImages.value.join(',')
+}
+
+// 删除商品图
+const removeProductImage = (index) => {
+  productImages.value.splice(index, 1)
+  basicInfoForm.value.images = [...productImages.value]
+}
+
 // 上一步
 const handlePrevStep = () => {
   if (currentStep.value > 0) {
     currentStep.value--
   }
+}
+
+// 加载分类属性组和属性
+const loadAttrGroups = async (catelogId) => {
+  if (!catelogId) {
+    attrGroups.value = []
+    selectedAttrGroupId.value = null
+    selectedAttrGroup.value = null
+    return
+  }
+  attrGroupsLoading.value = true
+  try {
+    const data = await getCategoryAttrGroupsWithAttrs(catelogId)
+    attrGroups.value = data || []
+    // 默认选择第一个属性组
+    if (attrGroups.value.length > 0) {
+      selectedAttrGroupId.value = attrGroups.value[0].attrGroupId
+      selectedAttrGroup.value = attrGroups.value[0]
+    } else {
+      selectedAttrGroupId.value = null
+      selectedAttrGroup.value = null
+    }
+    // 初始化属性值
+    attrValues.value = {}
+    quickShowAttrs.value = {}
+  } catch (error) {
+    ElMessage.error('加载属性组失败：' + error.message)
+    attrGroups.value = []
+    selectedAttrGroupId.value = null
+    selectedAttrGroup.value = null
+  } finally {
+    attrGroupsLoading.value = false
+  }
+}
+
+// 选择属性组
+const selectAttrGroup = (attrGroupId) => {
+  selectedAttrGroupId.value = attrGroupId
+  selectedAttrGroup.value = attrGroups.value.find(g => g.attrGroupId === attrGroupId) || null
+}
+
+// 判断属性是否为多选类型
+const isMultiSelect = (attr) => {
+  if (!attr) return false
+  const valueType = attr.valueType
+  // 支持字符串"多选"或数字1表示多选
+  if (typeof valueType === 'string') {
+    return valueType === '多选'
+  } else if (typeof valueType === 'number') {
+    return valueType === 1
+  }
+  return false
+}
+
+// 从valueSelect中解析出选项列表
+const getSelectOptions = (attr) => {
+  if (!attr || !attr.valueSelect) return []
+  // valueSelect是用逗号分隔的字符串，例如："选项1,选项2,选项3"
+  return attr.valueSelect.split(',').map(v => v.trim()).filter(v => v.length > 0)
 }
 
 // 下一步
@@ -369,6 +665,8 @@ const handleNextStep = async () => {
     if (!basicInfoFormRef.value) return
     await basicInfoFormRef.value.validate((valid) => {
       if (valid) {
+        // 加载属性组数据
+        loadAttrGroups(basicInfoForm.value.catelogId)
         currentStep.value++
       }
     })
@@ -575,5 +873,202 @@ onMounted(() => {
 /* 上传区域宽度控制 */
 .upload-area-medium {
   width: 400px;
+}
+
+/* 上传占位符 */
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* 图片预览列表 */
+.image-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px;
+  width: 100%;
+  min-height: 200px;
+}
+
+.image-preview-item {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.image-preview-item:hover {
+  border-color: #409eff;
+}
+
+.image-preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-preview-item.add-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fafafa;
+  border: 1px dashed #dcdfe6;
+}
+
+.image-preview-item.add-more:hover {
+  border-color: #409eff;
+  background-color: #f0f9ff;
+}
+
+.image-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.image-preview-item:hover .image-actions {
+  opacity: 1;
+}
+
+.delete-icon {
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.delete-icon:hover {
+  color: #f56c6c;
+}
+
+/* 规格参数页面样式 */
+.spec-params-container {
+  min-height: 400px;
+}
+
+.empty-state {
+  padding: 100px 0;
+  text-align: center;
+}
+
+.spec-params-layout {
+  display: flex;
+  gap: 20px;
+  min-height: 400px;
+}
+
+.attr-groups-sidebar {
+  width: 200px;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  background-color: #fff;
+  padding: 8px 0;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.attr-group-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: #606266;
+  font-size: 14px;
+}
+
+.attr-group-item:hover {
+  background-color: #f5f7fa;
+}
+
+.attr-group-item.attr-group-active {
+  background-color: #ecf5ff;
+  color: #409eff;
+  font-weight: 500;
+  border-right: 2px solid #409eff;
+}
+
+.attr-inputs-area {
+  flex: 1;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  background-color: #fff;
+  padding: 20px;
+  min-height: 400px;
+}
+
+.attr-inputs-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.attr-input-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.attr-label {
+  width: 120px;
+  color: #606266;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.attr-input-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.attr-input {
+  flex: 1;
+  max-width: 400px;
+}
+
+.quick-show-checkbox {
+  flex-shrink: 0;
+}
+
+.empty-attrs,
+.no-selection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+.attr-groups-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.attr-groups-sidebar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.attr-groups-sidebar::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.attr-groups-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 </style>

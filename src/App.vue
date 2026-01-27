@@ -4,7 +4,7 @@
       <!-- 左侧菜单栏 -->
       <el-aside :width="isCollapse ? '64px' : '200px'" class="app-aside">
         <div class="menu-header">
-          <span v-if="!isCollapse" class="logo-text">管理系统</span>
+          <span v-if="!isCollapse" class="logo-text">哔哩哔哩商城后台系统</span>
           <el-button
             :icon="isCollapse ? Expand : Fold"
             circle
@@ -115,9 +115,13 @@ const handleTabRemove = (tabName) => {
 
 .logo-text {
   color: #fff;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: bold;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
 .collapse-btn {

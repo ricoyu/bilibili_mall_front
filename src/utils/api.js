@@ -707,3 +707,91 @@ export async function getCategoryBrands(catelogId) {
     throw error
   }
 }
+
+// 搜索会员等级列表
+export async function searchMemberLevel(searchParams) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/member/level/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(searchParams)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data.data || []
+    }
+    throw new Error(data.message || '搜索会员等级失败')
+  } catch (error) {
+    console.error('搜索会员等级失败:', error)
+    throw error
+  }
+}
+
+// 创建会员等级
+export async function createMemberLevel(memberLevelData) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/member/level`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(memberLevelData)
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '创建会员等级失败')
+  } catch (error) {
+    console.error('创建会员等级失败:', error)
+    throw error
+  }
+}
+
+// 删除会员等级（支持单个或批量删除）
+export async function deleteMemberLevel(memberLevelIds) {
+  try {
+    // 将 ID 数组或单个 ID 转换为逗号分隔的字符串
+    const idsArray = Array.isArray(memberLevelIds) ? memberLevelIds : [memberLevelIds]
+    const idsParam = idsArray.join(',')
+    
+    const response = await fetch(`${API_BASE_URL}/member/level?ids=${idsParam}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data
+    }
+    throw new Error(data.message || '删除会员等级失败')
+  } catch (error) {
+    console.error('删除会员等级失败:', error)
+    throw error
+  }
+}
+
+// 获取分类对应的属性组和该属性组下的属性
+export async function getCategoryAttrGroupsWithAttrs(catelogId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/attrgroup/category/${catelogId}/attrs`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data.data || []
+    }
+    throw new Error(data.message || '获取分类属性组失败')
+  } catch (error) {
+    console.error('获取分类属性组失败:', error)
+    throw error
+  }
+}
+
+
