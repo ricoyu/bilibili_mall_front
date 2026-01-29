@@ -246,7 +246,7 @@
                   >
                     <div class="attr-label">{{ attr.attrName }}</div>
                     <div class="attr-input-wrapper">
-                      <!-- valueType为"多选"时：使用valueSelect的下拉选择（优先判断，包括上市年份等多选属性） -->
+                      <!-- valueType为"多选"时：使用valueSelect按逗号拆分后的下拉选择 -->
                       <el-select
                         v-if="isMultiSelect(attr)"
                         v-model="attrValues[attr.attrId]"
@@ -261,7 +261,22 @@
                           :value="option"
                         />
                       </el-select>
-                      <!-- 上市月份：下拉选择（仅当不是多选类型时使用硬编码的月份选项） -->
+                      <!-- valueType为"单选"时：下拉框展示整个valueSelect作为唯一选项，不按逗号拆分 -->
+                      <el-select
+                        v-else-if="isSingleSelect(attr)"
+                        v-model="attrValues[attr.attrId]"
+                        :placeholder="`请选择${attr.attrName}`"
+                        class="attr-input"
+                        clearable
+                      >
+                        <el-option
+                          v-for="option in getSelectOptions(attr)"
+                          :key="option"
+                          :label="option"
+                          :value="option"
+                        />
+                      </el-select>
+                      <!-- 上市月份：下拉选择（仅当不是多选/单选类型时使用硬编码的月份选项） -->
                       <el-select
                         v-else-if="attr.attrName === '上市月份'"
                         v-model="attrValues[attr.attrId]"
@@ -651,10 +666,27 @@ const isMultiSelect = (attr) => {
   return false
 }
 
+// 判断属性是否为单选类型
+const isSingleSelect = (attr) => {
+  if (!attr) return false
+  const valueType = attr.valueType
+  if (typeof valueType === 'string') {
+    return valueType === '单选'
+  } else if (typeof valueType === 'number') {
+    return valueType === 0
+  }
+  return false
+}
+
 // 从valueSelect中解析出选项列表
+// 多选：按逗号拆分为多个选项；单选：整个valueSelect作为一个选项，不拆分
 const getSelectOptions = (attr) => {
   if (!attr || !attr.valueSelect) return []
-  // valueSelect是用逗号分隔的字符串，例如："选项1,选项2,选项3"
+  if (isSingleSelect(attr)) {
+    const single = String(attr.valueSelect).trim()
+    return single ? [single] : []
+  }
+  // 多选：valueSelect是用逗号分隔的字符串
   return attr.valueSelect.split(',').map(v => v.trim()).filter(v => v.length > 0)
 }
 
