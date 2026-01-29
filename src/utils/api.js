@@ -794,4 +794,23 @@ export async function getCategoryAttrGroupsWithAttrs(catelogId) {
   }
 }
 
+// 获取分类下的销售属性列表
+export async function getCategorySaleAttrs(catelogId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/product/attrs/${catelogId}/sale`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data.data || []
+    }
+    throw new Error(data.message || '获取销售属性失败')
+  } catch (error) {
+    console.error('获取销售属性失败:', error)
+    throw error
+  }
+}
 

@@ -340,7 +340,47 @@
 
         <!-- 步骤3: 销售属性 -->
         <div v-if="currentStep === 2" class="step-panel">
-          <div class="step-placeholder">销售属性设置（待实现）</div>
+          <div v-loading="saleAttrsLoading" class="sale-attrs-container">
+            <div class="sale-attrs-title">选择销售属性</div>
+            <div v-if="saleAttrs.length === 0 && !saleAttrsLoading" class="empty-state">
+              <el-empty description="该分类暂无销售属性" />
+            </div>
+            <div v-else class="sale-attrs-list">
+              <div
+                v-for="attr in saleAttrs"
+                :key="attr.attrId"
+                class="sale-attr-row"
+              >
+                <span class="sale-attr-label">{{ attr.attrName }}</span>
+                <div class="sale-attr-values">
+                  <el-checkbox-group v-model="saleAttrSelectedValues[attr.attrId]" class="sale-attr-checkbox-group">
+                    <el-checkbox
+                      v-for="opt in getSaleAttrOptions(attr)"
+                      :key="opt"
+                      :label="opt"
+                      class="sale-attr-checkbox"
+                    />
+                  </el-checkbox-group>
+                  <el-input
+                    v-if="saleAttrCustomInputVisible[attr.attrId]"
+                    v-model="saleAttrCustomInputValue[attr.attrId]"
+                    class="sale-attr-custom-input"
+                    placeholder="输入后按回车添加"
+                    clearable
+                    @keyup.enter="addSaleAttrCustomValue(attr)"
+                  />
+                  <el-button
+                    type="primary"
+                    link
+                    class="sale-attr-custom-btn"
+                    @click="toggleSaleAttrCustomInput(attr)"
+                  >
+                    +自定义
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 步骤4: SKU信息 -->
@@ -375,7 +415,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, ArrowDown, ArrowRight, Close } from '@element-plus/icons-vue'
-import { getCategoryTree, getCategoryBrands, uploadCeph, getCategoryAttrGroupsWithAttrs } from '../utils/api'
+import { getCategoryTree, getCategoryBrands, uploadCeph, getCategoryAttrGroupsWithAttrs, getCategorySaleAttrs } from '../utils/api'
 import { ClickOutside as vClickOutside } from 'element-plus'
 
 const currentStep = ref(0)
@@ -398,6 +438,14 @@ const selectedAttrGroupId = ref(null)
 const selectedAttrGroup = ref(null)
 const attrValues = ref({}) // 属性值 { attrId: value }
 const quickShowAttrs = ref({}) // 快速展示属性 { attrId: boolean }
+
+// 销售属性
+const saleAttrs = ref([])
+const saleAttrsLoading = ref(false)
+const saleAttrSelectedValues = ref({}) // { attrId: string[] }
+const saleAttrCustomValues = ref({}) // { attrId: string[] }
+const saleAttrCustomInputVisible = ref({}) // { attrId: boolean }
+const saleAttrCustomInputValue = ref({}) // { attrId: string }
 
 // 月份选项（1-12月）
 const monthOptions = ref(
@@ -690,6 +738,66 @@ const getSelectOptions = (attr) => {
   return attr.valueSelect.split(',').map(v => v.trim()).filter(v => v.length > 0)
 }
 
+// 销售属性：可选值列表（接口 valueSelect 逗号拆分 + 用户自定义添加的值）
+const getSaleAttrOptions = (attr) => {
+  const base = attr?.valueSelect
+    ? attr.valueSelect.split(',').map(v => v.trim()).filter(v => v.length > 0)
+    : []
+  const custom = saleAttrCustomValues.value[attr.attrId] || []
+  return [...base, ...custom]
+}
+
+// 加载销售属性列表
+const loadSaleAttrs = async (catelogId) => {
+  if (!catelogId) {
+    saleAttrs.value = []
+    return
+  }
+  saleAttrsLoading.value = true
+  try {
+    const data = await getCategorySaleAttrs(catelogId)
+    saleAttrs.value = data || []
+    saleAttrSelectedValues.value = {}
+    saleAttrCustomValues.value = {}
+    saleAttrCustomInputVisible.value = {}
+    saleAttrCustomInputValue.value = {}
+    saleAttrs.value.forEach((attr) => {
+      saleAttrSelectedValues.value[attr.attrId] = []
+    })
+  } catch (error) {
+    ElMessage.error('加载销售属性失败：' + error.message)
+    saleAttrs.value = []
+  } finally {
+    saleAttrsLoading.value = false
+  }
+}
+
+// 点击 +自定义：在最后显示输入框
+const toggleSaleAttrCustomInput = (attr) => {
+  const id = attr.attrId
+  saleAttrCustomInputVisible.value = { ...saleAttrCustomInputVisible.value, [id]: !saleAttrCustomInputVisible.value[id] }
+  if (!saleAttrCustomInputVisible.value[id]) {
+    saleAttrCustomInputValue.value = { ...saleAttrCustomInputValue.value, [id]: '' }
+  }
+}
+
+// 添加自定义销售属性值（输入框回车时调用）
+const addSaleAttrCustomValue = (attr) => {
+  const id = attr.attrId
+  const val = (saleAttrCustomInputValue.value[id] || '').trim()
+  if (!val) return
+  const custom = saleAttrCustomValues.value[id] || []
+  if (custom.includes(val)) {
+    ElMessage.warning('该值已存在')
+    return
+  }
+  saleAttrCustomValues.value = { ...saleAttrCustomValues.value, [id]: [...custom, val] }
+  const selected = saleAttrSelectedValues.value[id] || []
+  saleAttrSelectedValues.value = { ...saleAttrSelectedValues.value, [id]: [...selected, val] }
+  saleAttrCustomInputValue.value = { ...saleAttrCustomInputValue.value, [id]: '' }
+  saleAttrCustomInputVisible.value = { ...saleAttrCustomInputVisible.value, [id]: false }
+}
+
 // 下一步
 const handleNextStep = async () => {
   if (currentStep.value === 0) {
@@ -702,6 +810,10 @@ const handleNextStep = async () => {
         currentStep.value++
       }
     })
+  } else if (currentStep.value === 1) {
+    // 进入销售属性步骤时加载销售属性（分类 ID 即接口中的 225 等）
+    await loadSaleAttrs(basicInfoForm.value.catelogId)
+    currentStep.value++
   } else if (currentStep.value < 3) {
     currentStep.value++
   } else {
@@ -1102,5 +1214,63 @@ onMounted(() => {
 
 .attr-groups-sidebar::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* 销售属性页面样式 */
+.sale-attrs-container {
+  min-height: 400px;
+}
+
+.sale-attrs-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 20px;
+}
+
+.sale-attrs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sale-attr-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.sale-attr-label {
+  width: 120px;
+  flex-shrink: 0;
+  color: #606266;
+  font-size: 14px;
+  line-height: 32px;
+}
+
+.sale-attr-values {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.sale-attr-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sale-attr-checkbox {
+  margin-right: 0;
+}
+
+.sale-attr-custom-input {
+  width: 160px;
+}
+
+.sale-attr-custom-btn {
+  padding-left: 8px;
 }
 </style>
