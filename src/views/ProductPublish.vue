@@ -447,6 +447,10 @@ const saleAttrCustomValues = ref({}) // { attrId: string[] }
 const saleAttrCustomInputVisible = ref({}) // { attrId: boolean }
 const saleAttrCustomInputValue = ref({}) // { attrId: string }
 
+// 记录已加载的分类ID，用于返回后再次进入时保留选择（不重复加载清空）
+const lastAttrGroupsCatelogId = ref(null)
+const lastSaleAttrsCatelogId = ref(null)
+
 // 月份选项（1-12月）
 const monthOptions = ref(
   Array.from({ length: 12 }, (_, i) => ({
@@ -668,13 +672,13 @@ const loadAttrGroups = async (catelogId) => {
     attrGroups.value = []
     selectedAttrGroupId.value = null
     selectedAttrGroup.value = null
+    lastAttrGroupsCatelogId.value = null
     return
   }
   attrGroupsLoading.value = true
   try {
     const data = await getCategoryAttrGroupsWithAttrs(catelogId)
     attrGroups.value = data || []
-    // 默认选择第一个属性组
     if (attrGroups.value.length > 0) {
       selectedAttrGroupId.value = attrGroups.value[0].attrGroupId
       selectedAttrGroup.value = attrGroups.value[0]
@@ -682,14 +686,15 @@ const loadAttrGroups = async (catelogId) => {
       selectedAttrGroupId.value = null
       selectedAttrGroup.value = null
     }
-    // 初始化属性值
     attrValues.value = {}
     quickShowAttrs.value = {}
+    lastAttrGroupsCatelogId.value = catelogId
   } catch (error) {
     ElMessage.error('加载属性组失败：' + error.message)
     attrGroups.value = []
     selectedAttrGroupId.value = null
     selectedAttrGroup.value = null
+    lastAttrGroupsCatelogId.value = null
   } finally {
     attrGroupsLoading.value = false
   }
@@ -751,6 +756,7 @@ const getSaleAttrOptions = (attr) => {
 const loadSaleAttrs = async (catelogId) => {
   if (!catelogId) {
     saleAttrs.value = []
+    lastSaleAttrsCatelogId.value = null
     return
   }
   saleAttrsLoading.value = true
@@ -764,9 +770,11 @@ const loadSaleAttrs = async (catelogId) => {
     saleAttrs.value.forEach((attr) => {
       saleAttrSelectedValues.value[attr.attrId] = []
     })
+    lastSaleAttrsCatelogId.value = catelogId
   } catch (error) {
     ElMessage.error('加载销售属性失败：' + error.message)
     saleAttrs.value = []
+    lastSaleAttrsCatelogId.value = null
   } finally {
     saleAttrsLoading.value = false
   }
@@ -800,19 +808,29 @@ const addSaleAttrCustomValue = (attr) => {
 
 // 下一步
 const handleNextStep = async () => {
+  const catelogId = basicInfoForm.value.catelogId
   if (currentStep.value === 0) {
     // 验证基本信息表单
     if (!basicInfoFormRef.value) return
     await basicInfoFormRef.value.validate((valid) => {
       if (valid) {
-        // 加载属性组数据
-        loadAttrGroups(basicInfoForm.value.catelogId)
-        currentStep.value++
+        // 首次进入或分类变更时才加载，返回再进入时直接保留之前的规格参数选择
+        const needLoad = lastAttrGroupsCatelogId.value !== catelogId || attrGroups.value.length === 0
+        if (needLoad) {
+          loadAttrGroups(catelogId).then(() => {
+            currentStep.value++
+          })
+        } else {
+          currentStep.value++
+        }
       }
     })
   } else if (currentStep.value === 1) {
-    // 进入销售属性步骤时加载销售属性（分类 ID 即接口中的 225 等）
-    await loadSaleAttrs(basicInfoForm.value.catelogId)
+    // 首次进入或分类变更时才加载，返回再进入时直接保留之前的销售属性选择
+    const needLoad = lastSaleAttrsCatelogId.value !== catelogId || saleAttrs.value.length === 0
+    if (needLoad) {
+      await loadSaleAttrs(catelogId)
+    }
     currentStep.value++
   } else if (currentStep.value < 3) {
     currentStep.value++
