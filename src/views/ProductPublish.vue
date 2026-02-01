@@ -390,39 +390,98 @@
             <div v-if="skuList.length === 0" class="empty-state">
               <el-empty description="请先在销售属性步骤勾选至少一个属性值" />
             </div>
-            <el-table v-else :data="skuList" border class="sku-table">
-              <el-table-column
-                v-for="col in skuAttrColumns"
-                :key="col.attrId"
-                :label="col.attrName"
-                :prop="col.attrId"
-                width="85"
-              >
-                <template #default="{ row }">
-                  {{ row.attrValues[col.attrId] }}
-                </template>
-              </el-table-column>
-              <el-table-column label="商品名称" min-width="220">
-                <template #default="{ row }">
-                  <el-input v-model="row.skuName" placeholder="商品名称" clearable />
-                </template>
-              </el-table-column>
-              <el-table-column label="标题" min-width="220">
-                <template #default="{ row }">
-                  <el-input v-model="row.title" placeholder="标题" clearable />
-                </template>
-              </el-table-column>
-              <el-table-column label="副标题" width="120">
-                <template #default="{ row }">
-                  <el-input v-model="row.subtitle" placeholder="副标题（可选）" clearable />
-                </template>
-              </el-table-column>
-              <el-table-column label="价格" min-width="130">
-                <template #default="{ row }">
-                  <el-input-number v-model="row.price" :min="0" :precision="2" placeholder="0" class="sku-price-input" />
-                </template>
-              </el-table-column>
-            </el-table>
+            <div v-else class="sku-custom-table">
+              <!-- 表头 -->
+              <div class="sku-table-header">
+                <div
+                  v-for="col in skuAttrColumns"
+                  :key="col.attrId"
+                  class="sku-th sku-attr-col"
+                >{{ col.attrName }}</div>
+                <div class="sku-th sku-name-col">商品名称</div>
+                <div class="sku-th sku-title-col">标题</div>
+                <div class="sku-th sku-subtitle-col">副标题</div>
+                <div class="sku-th sku-price-col">价格</div>
+                <div class="sku-th sku-expand-col"></div>
+              </div>
+              <!-- 数据行 -->
+              <template v-for="(row, rowIndex) in skuList" :key="row.id">
+                <div class="sku-table-row">
+                  <div
+                    v-for="col in skuAttrColumns"
+                    :key="col.attrId"
+                    class="sku-td sku-attr-col"
+                    :title="row.attrValues[col.attrId]"
+                  >{{ row.attrValues[col.attrId] }}</div>
+                  <div class="sku-td sku-name-col">
+                    <el-input v-model="row.skuName" placeholder="商品名称" size="small" />
+                  </div>
+                  <div class="sku-td sku-title-col">
+                    <el-input v-model="row.title" placeholder="标题" size="small" />
+                  </div>
+                  <div class="sku-td sku-subtitle-col">
+                    <el-input v-model="row.subtitle" placeholder="副标题" size="small" />
+                  </div>
+                  <div class="sku-td sku-price-col">
+                    <el-input-number v-model="row.price" :min="0" :precision="2" size="small" :controls="true" />
+                  </div>
+                  <div class="sku-td sku-expand-col" @click="toggleSkuExpand(rowIndex)">
+                    <el-icon :class="{ 'is-expanded': expandedSkuRows.includes(rowIndex) }">
+                      <ArrowRight />
+                    </el-icon>
+                  </div>
+                </div>
+                <!-- 展开内容 -->
+                <div v-if="expandedSkuRows.includes(rowIndex)" class="sku-expand-content">
+                  <div class="sku-expand-section">
+                    <span class="sku-expand-label">选择图集 或</span>
+                    <div class="sku-images-upload">
+                      <el-icon><Plus /></el-icon>
+                    </div>
+                  </div>
+                  <div class="sku-images-list" v-if="detailImages.length > 0 || productImages.length > 0">
+                    <div v-for="(url, imgIdx) in [...detailImages, ...productImages]" :key="imgIdx" class="sku-image-item">
+                      <img :src="url" alt="商品图" />
+                      <div class="sku-image-actions">
+                        <el-checkbox :model-value="row.selectedImages?.[url]" @change="toggleImageSelected(row, url)" />
+                        <el-radio :model-value="row.defaultImage" :value="url" @change="setDefaultImage(row, url)">设为默认</el-radio>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="sku-images-empty">暂无图片，请在基本信息中上传</div>
+                  <div class="sku-expand-row">
+                    <span class="sku-expand-label">设置折扣</span>
+                    <span>满</span>
+                    <el-input-number v-model="row.discount.fullCount" :min="0" :precision="0" size="small" class="sku-input-num" />
+                    <span>件</span>
+                    <span>打</span>
+                    <el-input-number v-model="row.discount.discountRate" :min="0" :max="1" :precision="2" :step="0.01" size="small" class="sku-input-num" />
+                    <span>折</span>
+                    <el-checkbox v-model="row.discount.canStack">可叠加优惠</el-checkbox>
+                  </div>
+                  <div class="sku-expand-row">
+                    <span class="sku-expand-label">设置满减</span>
+                    <span>满</span>
+                    <el-input-number v-model="row.fullReduction.fullPrice" :min="0" :precision="0" size="small" class="sku-input-num" />
+                    <span>元</span>
+                    <span>减</span>
+                    <el-input-number v-model="row.fullReduction.reducePrice" :min="0" :precision="0" size="small" class="sku-input-num" />
+                    <span>元</span>
+                    <el-checkbox v-model="row.fullReduction.canStack">可叠加优惠</el-checkbox>
+                  </div>
+                  <div class="sku-expand-row">
+                    <span class="sku-expand-label">设置会员价</span>
+                  </div>
+                  <div v-loading="memberLevelsLoading" class="sku-member-prices">
+                    <div v-for="level in memberLevels" :key="level.id ?? level.levelId" class="sku-member-item">
+                      <span>{{ level.name || level.levelName || ('等级' + (level.id ?? level.levelId)) }}</span>
+                      <el-input-number v-model="row.memberPrices[level.id ?? level.levelId]" :min="0" :precision="2" size="small" class="sku-input-num" />
+                    </div>
+                    <div v-if="memberLevels.length === 0 && !memberLevelsLoading" class="sku-member-empty">暂无会员等级</div>
+                  </div>
+                </div>
+              </template>
+            </div>
           </div>
         </div>
 
@@ -453,7 +512,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, ArrowDown, ArrowRight, Close } from '@element-plus/icons-vue'
-import { getCategoryTree, getCategoryBrands, uploadCeph, getCategoryAttrGroupsWithAttrs, getCategorySaleAttrs } from '../utils/api'
+import { getCategoryTree, getCategoryBrands, uploadCeph, getCategoryAttrGroupsWithAttrs, getCategorySaleAttrs, getMemberLevelPricePrivileged } from '../utils/api'
 import { ClickOutside as vClickOutside } from 'element-plus'
 
 const currentStep = ref(0)
@@ -495,6 +554,11 @@ const skuList = ref([])
 const skuAttrColumns = ref([])
 // 上次生成 SKU 的选中值签名，用于判断返回再进入时是否需要重新生成
 const lastSkuSelectionSignature = ref('')
+// 展开的SKU行索引
+const expandedSkuRows = ref([])
+// 会员等级列表
+const memberLevels = ref([])
+const memberLevelsLoading = ref(false)
 
 // 月份选项（1-12月）
 const monthOptions = ref(
@@ -888,7 +952,7 @@ const generateSkuList = () => {
   const combinations = cartesian(valueArrays)
   const spuName = basicInfoForm.value.spuName || ''
 
-  skuList.value = combinations.map((combo) => {
+  skuList.value = combinations.map((combo, idx) => {
     const attrValues = {}
     let nameParts = []
     attrsWithValues.forEach((a, i) => {
@@ -897,13 +961,54 @@ const generateSkuList = () => {
     })
     const skuNameStr = [spuName, ...nameParts].filter(Boolean).join(' ')
     return {
+      id: idx,
       attrValues,
       skuName: skuNameStr,
       title: skuNameStr,
       subtitle: '',
-      price: 0
+      price: 0,
+      selectedImages: {},
+      defaultImage: '',
+      discount: { fullCount: 0, discountRate: 0, canStack: false },
+      fullReduction: { fullPrice: 0, reducePrice: 0, canStack: false },
+      memberPrices: {}
     }
   })
+  expandedSkuRows.value = []
+}
+
+// 切换SKU行展开状态
+const toggleSkuExpand = (rowIndex) => {
+  const idx = expandedSkuRows.value.indexOf(rowIndex)
+  if (idx >= 0) {
+    expandedSkuRows.value.splice(idx, 1)
+  } else {
+    expandedSkuRows.value.push(rowIndex)
+  }
+}
+
+// 切换图片选中
+const toggleImageSelected = (row, url) => {
+  if (!row.selectedImages) row.selectedImages = {}
+  row.selectedImages[url] = !row.selectedImages[url]
+}
+
+// 设置默认图片
+const setDefaultImage = (row, url) => {
+  row.defaultImage = url
+}
+
+// 加载会员等级
+const loadMemberLevels = async () => {
+  memberLevelsLoading.value = true
+  try {
+    const data = await getMemberLevelPricePrivileged()
+    memberLevels.value = data || []
+  } catch (error) {
+    memberLevels.value = []
+  } finally {
+    memberLevelsLoading.value = false
+  }
 }
 
 // 下一步
@@ -935,6 +1040,9 @@ const handleNextStep = async () => {
   } else if (currentStep.value === 2) {
     // 进入 SKU 步骤时根据已选销售属性笛卡尔积生成 SKU 列表；返回再进入时重新生成以保持一致
     generateSkuList()
+    if (memberLevels.value.length === 0) {
+      loadMemberLevels()
+    }
     currentStep.value++
   } else if (currentStep.value < 3) {
     currentStep.value++
@@ -1408,18 +1516,216 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.sku-table {
-  width: 100%;
+/* 自定义SKU表格 */
+.sku-custom-table {
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
-.sku-price-input {
-  width: 100%;
-  min-width: 100px;
+.sku-table-header {
+  display: flex;
+  background-color: #f5f7fa;
+  border-bottom: 1px solid #ebeef5;
 }
 
-.sku-action-icon {
+.sku-table-row {
+  display: flex;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.sku-table-row:last-child {
+  border-bottom: none;
+}
+
+.sku-th, .sku-td {
+  padding: 10px 8px;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid #ebeef5;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.sku-th:last-child, .sku-td:last-child {
+  border-right: none;
+}
+
+.sku-th {
+  font-weight: 500;
   color: #909399;
+  justify-content: center;
+}
+
+.sku-td {
+  color: #606266;
+}
+
+.sku-attr-col {
+  flex: 0 0 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sku-name-col {
+  flex: 1;
+  min-width: 140px;
+}
+
+.sku-title-col {
+  flex: 1;
+  min-width: 140px;
+}
+
+.sku-subtitle-col {
+  flex: 0 0 100px;
+}
+
+.sku-price-col {
+  flex: 0 0 120px;
+}
+
+.sku-expand-col {
+  flex: 0 0 28px;
+  justify-content: center;
   cursor: pointer;
+  padding: 0;
+}
+
+.sku-expand-col .el-icon {
+  font-size: 12px;
+  color: #909399;
+  transition: transform 0.2s;
+}
+
+.sku-expand-col .el-icon:hover {
+  color: #409eff;
+}
+
+.sku-expand-col .el-icon.is-expanded {
+  transform: rotate(90deg);
+  color: #409eff;
+}
+
+.sku-td .el-input, .sku-td .el-input-number {
+  width: 100%;
+}
+
+/* 展开内容样式 */
+.sku-expand-content {
+  padding: 16px 20px;
+  background-color: #fafafa;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.sku-expand-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sku-expand-label {
+  min-width: 80px;
+  color: #606266;
+  font-size: 14px;
+}
+
+.sku-images-upload {
+  width: 80px;
+  height: 80px;
+  border: 1px dashed #dcdfe6;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.sku-images-upload:hover {
+  border-color: #409eff;
+}
+
+.sku-images-upload .el-icon {
+  font-size: 20px;
+  color: #c0c4cc;
+}
+
+.sku-images-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  background-color: #fff;
+}
+
+.sku-image-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.sku-image-item img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+}
+
+.sku-image-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.sku-images-empty {
+  color: #909399;
+  font-size: 14px;
+  padding: 16px;
+}
+
+.sku-expand-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #606266;
+}
+
+.sku-input-num {
+  width: 100px;
+}
+
+.sku-member-prices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 92px;
+}
+
+.sku-member-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #606266;
+}
+
+.sku-member-item span {
+  min-width: 60px;
+}
+
+.sku-member-empty {
+  color: #909399;
   font-size: 14px;
 }
 </style>

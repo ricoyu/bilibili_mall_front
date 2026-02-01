@@ -814,3 +814,23 @@ export async function getCategorySaleAttrs(catelogId) {
   }
 }
 
+// 获取有会员价格特权的会员等级列表
+export async function getMemberLevelPricePrivileged() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/member/level/price/privileged`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await response.json()
+    if (data.code === '0' || data.status === 'success') {
+      return data.data || []
+    }
+    throw new Error(data.message || '获取会员等级失败')
+  } catch (error) {
+    console.error('获取会员等级失败:', error)
+    throw error
+  }
+}
+
