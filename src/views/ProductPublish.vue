@@ -385,7 +385,45 @@
 
         <!-- 步骤4: SKU信息 -->
         <div v-if="currentStep === 3" class="step-panel">
-          <div class="step-placeholder">SKU信息设置（待实现）</div>
+          <div class="sku-container">
+            <div class="sku-title">属性组合</div>
+            <div v-if="skuList.length === 0" class="empty-state">
+              <el-empty description="请先在销售属性步骤勾选至少一个属性值" />
+            </div>
+            <el-table v-else :data="skuList" border class="sku-table">
+              <el-table-column
+                v-for="col in skuAttrColumns"
+                :key="col.attrId"
+                :label="col.attrName"
+                :prop="col.attrId"
+                width="90"
+              >
+                <template #default="{ row }">
+                  {{ row.attrValues[col.attrId] }}
+                </template>
+              </el-table-column>
+              <el-table-column label="商品名称" width="140">
+                <template #default="{ row }">
+                  <el-input v-model="row.skuName" placeholder="商品名称" clearable />
+                </template>
+              </el-table-column>
+              <el-table-column label="标题" width="140">
+                <template #default="{ row }">
+                  <el-input v-model="row.title" placeholder="标题" clearable />
+                </template>
+              </el-table-column>
+              <el-table-column label="副标题" width="120">
+                <template #default="{ row }">
+                  <el-input v-model="row.subtitle" placeholder="副标题（可选）" clearable />
+                </template>
+              </el-table-column>
+              <el-table-column label="价格" min-width="110">
+                <template #default="{ row }">
+                  <el-input-number v-model="row.price" :min="0" :precision="2" placeholder="0" class="sku-price-input" />
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
         </div>
 
         <!-- 步骤5: 保存完成 -->
@@ -450,6 +488,13 @@ const saleAttrCustomInputValue = ref({}) // { attrId: string }
 // 记录已加载的分类ID，用于返回后再次进入时保留选择（不重复加载清空）
 const lastAttrGroupsCatelogId = ref(null)
 const lastSaleAttrsCatelogId = ref(null)
+
+// SKU 信息列表（笛卡尔积生成）
+const skuList = ref([])
+// 生成 SKU 时使用的销售属性列（用于表头）
+const skuAttrColumns = ref([])
+// 上次生成 SKU 的选中值签名，用于判断返回再进入时是否需要重新生成
+const lastSkuSelectionSignature = ref('')
 
 // 月份选项（1-12月）
 const monthOptions = ref(
@@ -806,6 +851,61 @@ const addSaleAttrCustomValue = (attr) => {
   saleAttrCustomInputVisible.value = { ...saleAttrCustomInputVisible.value, [id]: false }
 }
 
+// 根据已选销售属性笛卡尔积生成 SKU 列表
+const generateSkuList = () => {
+  const attrsWithValues = saleAttrs.value
+    .map((attr) => ({
+      attrId: attr.attrId,
+      attrName: attr.attrName,
+      values: saleAttrSelectedValues.value[attr.attrId] || []
+    }))
+    .filter((a) => a.values.length > 0)
+
+  if (attrsWithValues.length === 0) {
+    skuList.value = []
+    skuAttrColumns.value = []
+    lastSkuSelectionSignature.value = ''
+    return
+  }
+
+  // 选中值签名，用于判断返回再进入时是否需重新生成（保留用户对商品名称、价格等的编辑）
+  const signature = attrsWithValues.map((a) => `${a.attrId}:${[...a.values].sort().join(',')}`).join('|')
+  if (signature === lastSkuSelectionSignature.value && skuList.value.length > 0) {
+    return
+  }
+  lastSkuSelectionSignature.value = signature
+  skuAttrColumns.value = attrsWithValues
+
+  // 笛卡尔积
+  const cartesian = (arrays) => {
+    if (arrays.length === 0) return [[]]
+    const [first, ...rest] = arrays
+    const restProduct = cartesian(rest)
+    return first.flatMap((v) => restProduct.map((r) => [v, ...r]))
+  }
+
+  const valueArrays = attrsWithValues.map((a) => a.values)
+  const combinations = cartesian(valueArrays)
+  const spuName = basicInfoForm.value.spuName || ''
+
+  skuList.value = combinations.map((combo) => {
+    const attrValues = {}
+    let nameParts = []
+    attrsWithValues.forEach((a, i) => {
+      attrValues[a.attrId] = combo[i]
+      nameParts.push(combo[i])
+    })
+    const skuNameStr = [spuName, ...nameParts].filter(Boolean).join(' ')
+    return {
+      attrValues,
+      skuName: skuNameStr,
+      title: skuNameStr,
+      subtitle: '',
+      price: 0
+    }
+  })
+}
+
 // 下一步
 const handleNextStep = async () => {
   const catelogId = basicInfoForm.value.catelogId
@@ -831,6 +931,10 @@ const handleNextStep = async () => {
     if (needLoad) {
       await loadSaleAttrs(catelogId)
     }
+    currentStep.value++
+  } else if (currentStep.value === 2) {
+    // 进入 SKU 步骤时根据已选销售属性笛卡尔积生成 SKU 列表；返回再进入时重新生成以保持一致
+    generateSkuList()
     currentStep.value++
   } else if (currentStep.value < 3) {
     currentStep.value++
@@ -860,7 +964,7 @@ onMounted(() => {
 }
 
 .publish-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   background-color: #fff;
   padding: 30px;
@@ -1290,5 +1394,32 @@ onMounted(() => {
 
 .sale-attr-custom-btn {
   padding-left: 8px;
+}
+
+/* SKU 信息页面样式 */
+.sku-container {
+  min-height: 400px;
+}
+
+.sku-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 20px;
+}
+
+.sku-table {
+  width: 100%;
+}
+
+.sku-price-input {
+  width: 100%;
+  min-width: 80px;
+}
+
+.sku-action-icon {
+  color: #909399;
+  cursor: pointer;
+  font-size: 14px;
 }
 </style>
