@@ -396,18 +396,18 @@
                 :key="col.attrId"
                 :label="col.attrName"
                 :prop="col.attrId"
-                width="90"
+                width="85"
               >
                 <template #default="{ row }">
                   {{ row.attrValues[col.attrId] }}
                 </template>
               </el-table-column>
-              <el-table-column label="商品名称" width="140">
+              <el-table-column label="商品名称" min-width="220">
                 <template #default="{ row }">
                   <el-input v-model="row.skuName" placeholder="商品名称" clearable />
                 </template>
               </el-table-column>
-              <el-table-column label="标题" width="140">
+              <el-table-column label="标题" min-width="220">
                 <template #default="{ row }">
                   <el-input v-model="row.title" placeholder="标题" clearable />
                 </template>
@@ -417,7 +417,7 @@
                   <el-input v-model="row.subtitle" placeholder="副标题（可选）" clearable />
                 </template>
               </el-table-column>
-              <el-table-column label="价格" min-width="110">
+              <el-table-column label="价格" min-width="130">
                 <template #default="{ row }">
                   <el-input-number v-model="row.price" :min="0" :precision="2" placeholder="0" class="sku-price-input" />
                 </template>
@@ -1414,7 +1414,7 @@ onMounted(() => {
 
 .sku-price-input {
   width: 100%;
-  min-width: 80px;
+  min-width: 100px;
 }
 
 .sku-action-icon {
