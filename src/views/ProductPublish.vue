@@ -100,7 +100,7 @@
               <el-select
                 v-model="basicInfoForm.brandId"
                 placeholder="请选择品牌"
-                class="form-input-medium"
+                class="form-input-medium brand-select"
                 filterable
                 :loading="brandLoading"
                 :disabled="!basicInfoForm.catelogId"
@@ -391,18 +391,27 @@
               <el-empty description="请先在销售属性步骤勾选至少一个属性值" />
             </div>
             <div v-else class="sku-custom-table">
-              <!-- 表头 -->
-              <div class="sku-table-header">
-                <div
-                  v-for="col in skuAttrColumns"
-                  :key="col.attrId"
-                  class="sku-th sku-attr-col"
-                >{{ col.attrName }}</div>
+              <!-- 第一行表头：属性组合 + 其他列名 -->
+              <div class="sku-table-header sku-header-level1">
+                <div class="sku-th sku-attr-group-cell" :style="{ width: (skuAttrColumns.length * 100) + 'px' }">属性组合</div>
                 <div class="sku-th sku-name-col">商品名称</div>
                 <div class="sku-th sku-title-col">标题</div>
                 <div class="sku-th sku-subtitle-col">副标题</div>
                 <div class="sku-th sku-price-col">价格</div>
                 <div class="sku-th sku-expand-col"></div>
+              </div>
+              <!-- 第二行表头：属性子列 + 空白占位 -->
+              <div class="sku-table-header sku-header-level2">
+                <div
+                  v-for="col in skuAttrColumns"
+                  :key="col.attrId"
+                  class="sku-th sku-attr-col"
+                >{{ col.attrName }}</div>
+                <div class="sku-th sku-name-col sku-empty-cell"></div>
+                <div class="sku-th sku-title-col sku-empty-cell"></div>
+                <div class="sku-th sku-subtitle-col sku-empty-cell"></div>
+                <div class="sku-th sku-price-col sku-empty-cell"></div>
+                <div class="sku-th sku-expand-col sku-empty-cell"></div>
               </div>
               <!-- 数据行 -->
               <template v-for="(row, rowIndex) in skuList" :key="row.id">
@@ -509,7 +518,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, ArrowDown, ArrowRight, Close } from '@element-plus/icons-vue'
 import { getCategoryTree, getCategoryBrands, uploadCeph, getCategoryAttrGroupsWithAttrs, getCategorySaleAttrs, getMemberLevelPricePrivileged } from '../utils/api'
@@ -559,6 +568,7 @@ const expandedSkuRows = ref([])
 // 会员等级列表
 const memberLevels = ref([])
 const memberLevelsLoading = ref(false)
+
 
 // 月份选项（1-12月）
 const monthOptions = ref(
@@ -1226,6 +1236,15 @@ onMounted(() => {
   width: 200px;
 }
 
+/* 选择品牌下拉框悬停时显示手形 */
+.brand-select {
+  cursor: pointer;
+}
+
+.brand-select :deep(.el-select__wrapper) {
+  cursor: pointer;
+}
+
 /* 积分和成长值行布局 */
 .points-row {
   display: flex;
@@ -1526,7 +1545,43 @@ onMounted(() => {
 .sku-table-header {
   display: flex;
   background-color: #f5f7fa;
+}
+
+.sku-header-level1 {
+  border-bottom: none;
+  min-height: 40px;
+}
+
+.sku-header-level2 {
   border-bottom: 1px solid #ebeef5;
+  min-height: 40px;
+}
+
+.sku-attr-group-cell {
+  justify-content: flex-start !important;
+  padding-left: 12px !important;
+  font-weight: 500;
+  border-bottom: 1px solid #ebeef5 !important;
+}
+
+/* 让商品名称、标题、副标题、价格、箭头五列在第一行表头中占据两行高度，垂直居中 */
+.sku-header-level1 .sku-name-col,
+.sku-header-level1 .sku-title-col,
+.sku-header-level1 .sku-subtitle-col,
+.sku-header-level1 .sku-price-col,
+.sku-header-level1 .sku-expand-col {
+  height: 80px; /* 两行表头的总高度 (40px * 2) */
+  border-bottom: 1px solid #ebeef5;
+}
+
+.sku-empty-cell {
+  border: none !important;
+  padding: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  line-height: 0 !important;
+  overflow: hidden;
+  font-size: 0 !important;
 }
 
 .sku-table-row {
@@ -1562,11 +1617,12 @@ onMounted(() => {
 }
 
 .sku-attr-col {
-  flex: 0 0 80px;
+  flex: 0 0 100px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 
 .sku-name-col {
   flex: 1;
